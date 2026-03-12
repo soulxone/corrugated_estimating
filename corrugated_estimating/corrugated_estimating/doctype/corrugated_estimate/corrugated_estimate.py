@@ -11,6 +11,9 @@ class CorrugatedEstimate(Document):
 
     def before_save(self):
         """Recalculate blank size and all quantity row costs on every save."""
+        # Sync estimate_no display field with the auto-named document ID
+        if not self.estimate_no:
+            self.estimate_no = self.name
         self._calc_blank_size()
         self._calc_quantities()
 
