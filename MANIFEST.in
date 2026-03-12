@@ -1,0 +1,2 @@
+include MANIFEST.in
+recursive-include corrugated_estimating *.json *.js *.css *.html *.py *.txt

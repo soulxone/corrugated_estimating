@@ -1,0 +1,275 @@
+{
+  "actions": [],
+  "autoname": "CE-.YYYY.-.#####",
+  "creation": "2026-03-12 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "estimate_no",
+    "status",
+    "estimate_date",
+    "valid_until",
+    "sales_rep",
+    "col_header",
+    "customer",
+    "crm_lead",
+    "crm_deal",
+    "contact",
+    "spec_section",
+    "box_style",
+    "flute_type",
+    "board_grade",
+    "spec_col1",
+    "length_inside",
+    "width_inside",
+    "depth_inside",
+    "blank_section",
+    "blank_length",
+    "blank_width",
+    "blank_area_sqft",
+    "print_section",
+    "num_colors",
+    "print_method",
+    "coating",
+    "files_col",
+    "cad_file",
+    "print_artwork",
+    "qty_section",
+    "quantities",
+    "notes_section",
+    "internal_notes",
+    "customer_notes"
+  ],
+  "fields": [
+    {
+      "fieldname": "estimate_no",
+      "fieldtype": "Data",
+      "label": "Estimate No.",
+      "read_only": 1,
+      "bold": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "Status",
+      "options": "Draft\nSent\nAccepted\nRejected\nExpired",
+      "default": "Draft",
+      "reqd": 1,
+      "in_list_view": 1,
+      "bold": 1
+    },
+    {
+      "fieldname": "estimate_date",
+      "fieldtype": "Date",
+      "label": "Estimate Date",
+      "default": "Today",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "valid_until",
+      "fieldtype": "Date",
+      "label": "Valid Until"
+    },
+    {
+      "fieldname": "sales_rep",
+      "fieldtype": "Link",
+      "label": "Sales Rep",
+      "options": "User"
+    },
+    {
+      "fieldname": "col_header",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "customer",
+      "fieldtype": "Link",
+      "label": "Customer",
+      "options": "Customer",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "crm_lead",
+      "fieldtype": "Link",
+      "label": "CRM Lead",
+      "options": "CRM Lead"
+    },
+    {
+      "fieldname": "crm_deal",
+      "fieldtype": "Link",
+      "label": "CRM Deal",
+      "options": "CRM Deal"
+    },
+    {
+      "fieldname": "contact",
+      "fieldtype": "Data",
+      "label": "Contact / Email"
+    },
+    {
+      "fieldname": "spec_section",
+      "fieldtype": "Section Break",
+      "label": "Box Specification"
+    },
+    {
+      "fieldname": "box_style",
+      "fieldtype": "Link",
+      "label": "Box Style",
+      "options": "Corrugated Box Style",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "flute_type",
+      "fieldtype": "Link",
+      "label": "Flute Type",
+      "options": "Corrugated Flute"
+    },
+    {
+      "fieldname": "board_grade",
+      "fieldtype": "Link",
+      "label": "Board Grade",
+      "options": "Corrugated Board Grade"
+    },
+    {
+      "fieldname": "spec_col1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "length_inside",
+      "fieldtype": "Float",
+      "label": "Length Inside (in)"
+    },
+    {
+      "fieldname": "width_inside",
+      "fieldtype": "Float",
+      "label": "Width Inside (in)"
+    },
+    {
+      "fieldname": "depth_inside",
+      "fieldtype": "Float",
+      "label": "Depth Inside (in)"
+    },
+    {
+      "fieldname": "blank_section",
+      "fieldtype": "Section Break",
+      "label": "Calculated Blank Size",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "blank_length",
+      "fieldtype": "Float",
+      "label": "Blank Length (in)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "blank_width",
+      "fieldtype": "Float",
+      "label": "Blank Width (in)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "blank_area_sqft",
+      "fieldtype": "Float",
+      "label": "Blank Area (sq ft)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "print_section",
+      "fieldtype": "Section Break",
+      "label": "Print Specifications"
+    },
+    {
+      "fieldname": "num_colors",
+      "fieldtype": "Int",
+      "label": "# Colors",
+      "default": "0"
+    },
+    {
+      "fieldname": "print_method",
+      "fieldtype": "Link",
+      "label": "Print Method",
+      "options": "Corrugated Print Method"
+    },
+    {
+      "fieldname": "coating",
+      "fieldtype": "Select",
+      "label": "Coating",
+      "options": "\nNone\nAqueous\nUV\nMatte\nGloss"
+    },
+    {
+      "fieldname": "files_col",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "cad_file",
+      "fieldtype": "Attach",
+      "label": "CAD File"
+    },
+    {
+      "fieldname": "print_artwork",
+      "fieldtype": "Attach",
+      "label": "Print Artwork"
+    },
+    {
+      "fieldname": "qty_section",
+      "fieldtype": "Section Break",
+      "label": "Quantity Breaks & Pricing"
+    },
+    {
+      "fieldname": "quantities",
+      "fieldtype": "Table",
+      "label": "Quantities",
+      "options": "Corrugated Estimate Quantity"
+    },
+    {
+      "fieldname": "notes_section",
+      "fieldtype": "Section Break",
+      "label": "Notes"
+    },
+    {
+      "fieldname": "internal_notes",
+      "fieldtype": "Text",
+      "label": "Internal Notes (not shown to customer)"
+    },
+    {
+      "fieldname": "customer_notes",
+      "fieldtype": "Text",
+      "label": "Customer Notes (shown on spec card)"
+    }
+  ],
+  "links": [],
+  "modified": "2026-03-12 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Corrugated Estimating",
+  "name": "Corrugated Estimate",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Sales Manager",
+      "share": 1,
+      "submit": 0,
+      "write": 1
+    },
+    {
+      "create": 1,
+      "email": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "Sales User",
+      "write": 1
+    }
+  ],
+  "search_fields": "customer,crm_lead,status",
+  "sort_field": "estimate_date",
+  "sort_order": "DESC",
+  "title_field": "estimate_no",
+  "track_changes": 1
+}

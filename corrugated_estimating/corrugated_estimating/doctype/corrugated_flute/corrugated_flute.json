@@ -1,0 +1,55 @@
+{
+  "actions": [],
+  "creation": "2026-03-12 00:00:00.000000",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": ["flute_code", "caliper_mm", "liner_gsm", "medium_gsm", "description"],
+  "fields": [
+    {
+      "fieldname": "flute_code",
+      "fieldtype": "Data",
+      "label": "Flute Code",
+      "reqd": 1,
+      "in_list_view": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "caliper_mm",
+      "fieldtype": "Float",
+      "label": "Caliper (mm)",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "liner_gsm",
+      "fieldtype": "Float",
+      "label": "Liner Weight (GSM)"
+    },
+    {
+      "fieldname": "medium_gsm",
+      "fieldtype": "Float",
+      "label": "Medium Weight (GSM)"
+    },
+    {
+      "fieldname": "description",
+      "fieldtype": "Small Text",
+      "label": "Description"
+    }
+  ],
+  "links": [],
+  "modified": "2026-03-12 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Corrugated Estimating",
+  "name": "Corrugated Flute",
+  "naming_rule": "By fieldname",
+  "autoname": "field:flute_code",
+  "owner": "Administrator",
+  "permissions": [
+    {"create": 1, "delete": 1, "read": 1, "write": 1, "role": "System Manager"},
+    {"read": 1, "role": "Sales User"}
+  ],
+  "sort_field": "flute_code",
+  "sort_order": "ASC",
+  "track_changes": 0
+}
