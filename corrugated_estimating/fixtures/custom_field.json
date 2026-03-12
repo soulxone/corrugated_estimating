@@ -1,0 +1,23 @@
+[
+    {
+        "doctype": "Custom Field",
+        "name": "Customer-estimate_history_section",
+        "dt": "Customer",
+        "label": "Corrugated Estimates",
+        "fieldname": "estimate_history_section",
+        "fieldtype": "Section Break",
+        "collapsible": 0,
+        "insert_after": "customer_primary_contact",
+        "module": "Corrugated Estimating",
+        "in_list_view": 0,
+        "in_standard_filter": 0,
+        "bold": 0,
+        "no_copy": 0,
+        "print_hide": 1,
+        "report_hide": 0,
+        "reqd": 0,
+        "hidden": 0,
+        "permlevel": 0,
+        "translatable": 0
+    }
+]
