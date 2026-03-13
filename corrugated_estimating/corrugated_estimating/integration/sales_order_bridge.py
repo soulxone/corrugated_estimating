@@ -1,0 +1,139 @@
+"""
+sales_order_bridge.py
+──────────────────────────────────────────────────────────────────────────────
+Converts an accepted Corrugated Estimate into an ERPNext Sales Order.
+Called from the Corrugated Estimate form JS "Convert to Sales Order" button.
+"""
+
+import frappe
+from frappe import _
+from frappe.utils import today, add_days, flt
+
+
+@frappe.whitelist()
+def estimate_to_sales_order(estimate_name, quantity_row_idx=None):
+    """
+    Create a Sales Order from a Corrugated Estimate.
+
+    Args:
+        estimate_name: str — Corrugated Estimate document name
+        quantity_row_idx: int|None — index of the quantity break to use (0 = first row)
+                          If None, uses the first row.
+
+    Returns:
+        dict with status, sales_order name, and any messages.
+    """
+    estimate = frappe.get_doc("Corrugated Estimate", estimate_name)
+
+    if estimate.status not in ("Accepted", "Sent", "Draft"):
+        frappe.throw(_("Can only convert Draft, Sent, or Accepted estimates to Sales Orders."))
+
+    if not estimate.customer:
+        frappe.throw(_("Estimate must have a Customer linked before creating a Sales Order."))
+
+    if not estimate.quantities:
+        frappe.throw(_("Estimate has no quantity rows — please add pricing."))
+
+    # Select quantity row
+    idx = int(quantity_row_idx or 0)
+    if idx >= len(estimate.quantities):
+        idx = 0
+    qty_row = estimate.quantities[idx]
+
+    # Build item description from box spec
+    item_description = _build_item_description(estimate)
+
+    # Find or create an ERPNext Item for this box style
+    item_code = _get_or_create_item(estimate, item_description)
+
+    # Build the Sales Order
+    so = frappe.new_doc("Sales Order")
+    so.customer       = estimate.customer
+    so.delivery_date  = add_days(today(), 14)
+    so.company        = frappe.defaults.get_global_default("company")
+
+    # Custom reference fields (added via fixture)
+    if hasattr(so, "corrugated_estimate_ref"):
+        so.corrugated_estimate_ref = estimate_name
+    if estimate.crm_deal and hasattr(so, "crm_deal"):
+        so.crm_deal = estimate.crm_deal
+    if estimate.crm_lead and hasattr(so, "crm_lead"):
+        so.crm_lead = estimate.crm_lead
+
+    # Sales rep
+    if estimate.sales_rep:
+        so.sales_person = estimate.sales_rep
+
+    # Add item row
+    item_row = so.append("items", {})
+    item_row.item_code   = item_code
+    item_row.item_name   = item_description[:140]
+    item_row.description = item_description
+    item_row.qty         = flt(qty_row.quantity)
+    item_row.uom         = "Nos"
+    item_row.rate        = flt(qty_row.sell_price_unit)
+    item_row.delivery_date = so.delivery_date
+
+    so.insert(ignore_permissions=True)
+
+    # Mark estimate as linked
+    frappe.db.set_value("Corrugated Estimate", estimate_name, {
+        "status":          "Accepted",
+        "sales_order_ref": so.name,
+    })
+
+    frappe.db.commit()
+    return {
+        "status": "success",
+        "sales_order": so.name,
+        "message": _("Sales Order {0} created from estimate {1}").format(so.name, estimate_name),
+    }
+
+
+def _build_item_description(estimate):
+    """Build a human-readable description of the corrugated box."""
+    parts = []
+    if estimate.box_style:
+        parts.append(estimate.box_style)
+    if estimate.flute_type:
+        parts.append(estimate.flute_type)
+    if estimate.board_grade:
+        parts.append(estimate.board_grade)
+    dims = []
+    if estimate.length_inside: dims.append(f'L{estimate.length_inside}"')
+    if estimate.width_inside:  dims.append(f'W{estimate.width_inside}"')
+    if estimate.depth_inside:  dims.append(f'D{estimate.depth_inside}"')
+    if dims:
+        parts.append("×".join(dims))
+    if estimate.num_colors and int(estimate.num_colors or 0) > 0:
+        parts.append(f"{estimate.num_colors}C")
+    return " ".join(parts) if parts else f"Corrugated Box — {estimate.name}"
+
+
+def _get_or_create_item(estimate, description):
+    """
+    Return an Item code for this box spec.
+    Uses a generic "Corrugated Box" item if it exists, else creates one.
+    In production, you'd match to actual item masters or use Item Variants.
+    """
+    # Try: item named after the estimate
+    candidate = f"BOX-{estimate.name}"
+    if frappe.db.exists("Item", candidate):
+        return candidate
+
+    # Try: generic corrugated box item
+    if frappe.db.exists("Item", "Corrugated Box"):
+        return "Corrugated Box"
+
+    # Create a minimal item
+    item = frappe.new_doc("Item")
+    item.item_code        = candidate
+    item.item_name        = description[:140]
+    item.description      = description
+    item.item_group       = "Products"
+    item.stock_uom        = "Nos"
+    item.is_stock_item    = 1
+    item.is_sales_item    = 1
+    item.is_purchase_item = 0
+    item.insert(ignore_permissions=True)
+    return candidate

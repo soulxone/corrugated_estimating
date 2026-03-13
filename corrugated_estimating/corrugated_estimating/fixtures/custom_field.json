@@ -19,5 +19,30 @@
         "hidden": 0,
         "permlevel": 0,
         "translatable": 0
+    },
+    {
+        "doctype": "Custom Field",
+        "name": "Sales Order-corrugated_estimate_ref",
+        "dt": "Sales Order",
+        "label": "Corrugated Estimate",
+        "fieldname": "corrugated_estimate_ref",
+        "fieldtype": "Link",
+        "options": "Corrugated Estimate",
+        "read_only": 1,
+        "insert_after": "amended_from",
+        "module": "Corrugated Estimating",
+        "description": "Linked Corrugated Estimate this Sales Order was created from"
+    },
+    {
+        "doctype": "Custom Field",
+        "name": "Job Card-corrugated_estimate_ref",
+        "dt": "Job Card",
+        "label": "Corrugated Estimate",
+        "fieldname": "corrugated_estimate_ref",
+        "fieldtype": "Link",
+        "options": "Corrugated Estimate",
+        "insert_after": "sales_order",
+        "module": "Corrugated Estimating",
+        "description": "Linked Corrugated Estimate for this production job"
     }
 ]

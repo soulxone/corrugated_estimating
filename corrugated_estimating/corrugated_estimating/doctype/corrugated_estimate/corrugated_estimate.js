@@ -57,6 +57,60 @@ frappe.ui.form.on("Corrugated Estimate", {
             frm.add_custom_button(__("Print Cost Report"), function() {
                 _print_cost_report(frm);
             }, __("Estimating"));
+
+            // ── Integration buttons ─────────────────────────────────────
+            // Convert to Sales Order
+            if (frm.doc.status !== "Rejected" && !frm.doc.sales_order_ref) {
+                frm.add_custom_button(__("Convert to Sales Order"), function() {
+                    _convert_to_sales_order(frm);
+                }, __("Integrate"));
+            }
+            if (frm.doc.sales_order_ref) {
+                frm.add_custom_button(__("View Sales Order"), function() {
+                    frappe.set_route("Form", "Sales Order", frm.doc.sales_order_ref);
+                }, __("Integrate"));
+                frm.dashboard.add_comment(
+                    `✓ Sales Order: <a href="/app/sales-order/${frm.doc.sales_order_ref}">${frm.doc.sales_order_ref}</a>`,
+                    "green", true
+                );
+            }
+
+            // CRM links
+            if (frm.doc.crm_lead) {
+                frm.add_custom_button(__("View CRM Lead"), function() {
+                    window.open(`/crm/leads/${frm.doc.crm_lead}`, "_blank");
+                }, __("Integrate"));
+            }
+            if (frm.doc.crm_deal) {
+                frm.add_custom_button(__("View CRM Deal"), function() {
+                    window.open(`/crm/deals/${frm.doc.crm_deal}`, "_blank");
+                }, __("Integrate"));
+            }
+
+            // Job Cards linked to this estimate
+            frm.add_custom_button(__("Job Cards"), function() {
+                frappe.route_options = { corrugated_estimate_ref: frm.doc.name };
+                frappe.set_route("List", "Job Card", "List");
+            }, __("Integrate"));
+
+            // Inventory check for board material
+            if (frm.doc.board_grade) {
+                frm.add_custom_button(__("Check Board Stock"), function() {
+                    _check_board_stock(frm);
+                }, __("Integrate"));
+            }
+        }
+
+        // Status badge colors
+        const statusColors = {
+            "Draft":    "grey",
+            "Sent":     "blue",
+            "Accepted": "green",
+            "Rejected": "red",
+            "Expired":  "orange"
+        };
+        if (frm.doc.status && statusColors[frm.doc.status]) {
+            frm.page.set_indicator(frm.doc.status, statusColors[frm.doc.status]);
         }
     },
 
@@ -370,4 +424,88 @@ function _f(val, decimals) {
 
 function _rf(label, value) {
     return "<div class='field'><div class='label'>" + label + "</div><div class='value'>" + (value || "—") + "</div></div>";
+}
+
+// ── Integration helpers ───────────────────────────────────────────────────────
+
+function _convert_to_sales_order(frm) {
+    // Build quantity row selector if multiple rows exist
+    const rows = frm.doc.quantities || [];
+    if (!rows.length) {
+        frappe.msgprint(__("Please add at least one quantity break before converting."));
+        return;
+    }
+
+    let promptFields = [];
+    if (rows.length > 1) {
+        promptFields.push({
+            label: __("Select Quantity Break"),
+            fieldname: "qty_idx",
+            fieldtype: "Select",
+            options: rows.map((r, i) => `${i}: ${frappe.format(r.quantity, {fieldtype:"Int"})} units @ ${frappe.format(r.sell_price_unit, {fieldtype:"Currency"})}/ea`).join("\n"),
+            default: "0",
+        });
+    }
+
+    const doConvert = (qty_idx) => {
+        frappe.show_progress(__("Creating Sales Order…"), 0, 100);
+        frappe.call({
+            method: "corrugated_estimating.corrugated_estimating.integration.sales_order_bridge.estimate_to_sales_order",
+            args: {
+                estimate_name:    frm.doc.name,
+                quantity_row_idx: qty_idx || 0,
+            },
+            callback(r) {
+                frappe.hide_progress();
+                const res = r.message || {};
+                if (res.status === "success") {
+                    frappe.show_alert({ message: res.message, indicator: "green" }, 8);
+                    frm.reload_doc();
+                } else {
+                    frappe.msgprint({ title: __("Conversion Failed"), message: res.message || "Unknown error", indicator: "red" });
+                }
+            },
+        });
+    };
+
+    if (rows.length > 1) {
+        frappe.prompt(promptFields, (vals) => {
+            const idx = parseInt((vals.qty_idx || "0").split(":")[0]);
+            doConvert(idx);
+        }, __("Convert to Sales Order"), __("Create SO"));
+    } else {
+        frappe.confirm(
+            __("Create a Sales Order for {0} units at {1}/ea?",
+               [frappe.format(rows[0].quantity, {fieldtype:"Int"}),
+                frappe.format(rows[0].sell_price_unit, {fieldtype:"Currency"})]),
+            () => doConvert(0)
+        );
+    }
+}
+
+function _check_board_stock(frm) {
+    // Check if the board grade item is in stock via Lexington Inventory Monitor API
+    frappe.call({
+        method: "lexington_inventory.lexington_inventory.api.get_item_stock_info",
+        args: { item_code: frm.doc.board_grade },
+        callback(r) {
+            if (!r.message || r.message.status !== "success") {
+                frappe.msgprint(__("Could not retrieve stock info — ensure Lexington Inventory Monitor is installed and the board grade matches an Item code."));
+                return;
+            }
+            const s = r.message;
+            const color = s.actual_qty <= 0 ? "red" : s.actual_qty <= s.reorder_level ? "orange" : "green";
+            const icon  = s.actual_qty <= 0 ? "🔴" : s.actual_qty <= s.reorder_level ? "🟠" : "🟢";
+            frappe.msgprint({
+                title: __("Board Stock — {0}", [frm.doc.board_grade]),
+                message: `
+                    <div style="text-align:center;font-size:18px;padding:12px">
+                        ${icon} <b style="color:${color}">${s.actual_qty} ${s.uom || "units"}</b> on hand
+                        <div style="font-size:12px;color:#888;margin-top:8px">Reorder level: ${s.reorder_level || "—"} | Open alerts: ${s.open_alerts}</div>
+                    </div>
+                `,
+                indicator: s.actual_qty <= 0 ? "red" : s.actual_qty <= s.reorder_level ? "orange" : "green",
+            });
+        },
+    });
 }

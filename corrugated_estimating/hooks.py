@@ -9,7 +9,9 @@ app_license = "MIT"
 # customer_estimates.js  → injects "Estimate History" tab into ERPNext Customer form
 # Corrugated Estimate DocType JS is loaded automatically from doctype directory
 doctype_js = {
-    "Customer": "public/js/customer_estimates.js",
+    "Customer":     "public/js/customer_estimates.js",
+    "Sales Order":  "public/js/sales_order_estimate.js",
+    "Job Card":     "public/js/job_card_estimate.js",
 }
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -21,6 +23,8 @@ fixtures = [
         "filters": [
             ["name", "in", [
                 "Customer-estimate_history_section",
+                "Sales Order-corrugated_estimate_ref",
+                "Job Card-corrugated_estimate_ref",
             ]]
         ]
     },
