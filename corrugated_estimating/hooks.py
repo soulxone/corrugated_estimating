@@ -34,4 +34,9 @@ fixtures = [
         "doctype": "Print Format",
         "filters": [["name", "in", ["Corrugated Cost Report"]]]
     },
+    # ── Workspace: Corrugated Estimating desk page ────────────────────────────
+    {
+        "doctype": "Workspace",
+        "filters": [["name", "in", ["Corrugated Estimating"]]]
+    },
 ]

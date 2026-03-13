@@ -1,0 +1,105 @@
+{
+    "doctype": "Workspace",
+    "name": "Corrugated Estimating",
+    "title": "Corrugated Estimating",
+    "module": "Corrugated Estimating",
+    "public": 1,
+    "is_standard": 0,
+    "sequence_id": 10,
+    "icon": "fa fa-file-text-o",
+    "charts": [],
+    "shortcuts": [
+        {
+            "color": "Blue",
+            "doc_view": "List",
+            "label": "All Estimates",
+            "link_to": "Corrugated Estimate",
+            "type": "DocType"
+        },
+        {
+            "color": "Green",
+            "doc_view": "new",
+            "label": "New Estimate",
+            "link_to": "Corrugated Estimate",
+            "type": "DocType"
+        },
+        {
+            "color": "Orange",
+            "doc_view": "List",
+            "label": "Draft Estimates",
+            "link_to": "Corrugated Estimate",
+            "type": "DocType",
+            "restrict_to_domain": "",
+            "stats_filter": "{\"status\": \"Draft\"}"
+        },
+        {
+            "color": "Purple",
+            "label": "Settings",
+            "link_to": "Corrugated Estimating Settings",
+            "type": "DocType"
+        }
+    ],
+    "content": "[{\"type\":\"card\",\"data\":{\"card_name\":\"Estimates\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Box Setup\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
+    "cards": [
+        {"label": "Estimates", "hidden": 0},
+        {"label": "Box Setup", "hidden": 0},
+        {"label": "Settings", "hidden": 0}
+    ],
+    "links": [
+        {
+            "dependencies": "",
+            "hidden": 0,
+            "is_query_report": 0,
+            "label": "Corrugated Estimate",
+            "link_to": "Corrugated Estimate",
+            "link_type": "DocType",
+            "onboard": 1,
+            "type": "Link"
+        },
+        {
+            "hidden": 0,
+            "is_query_report": 0,
+            "label": "Box Styles",
+            "link_to": "Corrugated Box Style",
+            "link_type": "DocType",
+            "onboard": 0,
+            "type": "Link"
+        },
+        {
+            "hidden": 0,
+            "is_query_report": 0,
+            "label": "Flutes",
+            "link_to": "Corrugated Flute",
+            "link_type": "DocType",
+            "onboard": 0,
+            "type": "Link"
+        },
+        {
+            "hidden": 0,
+            "is_query_report": 0,
+            "label": "Board Grades",
+            "link_to": "Corrugated Board Grade",
+            "link_type": "DocType",
+            "onboard": 0,
+            "type": "Link"
+        },
+        {
+            "hidden": 0,
+            "is_query_report": 0,
+            "label": "Print Methods",
+            "link_to": "Corrugated Print Method",
+            "link_type": "DocType",
+            "onboard": 0,
+            "type": "Link"
+        },
+        {
+            "hidden": 0,
+            "is_query_report": 0,
+            "label": "Estimating Settings",
+            "link_to": "Corrugated Estimating Settings",
+            "link_type": "DocType",
+            "onboard": 0,
+            "type": "Link"
+        }
+    ]
+}
