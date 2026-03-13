@@ -6,12 +6,15 @@ app_email = "admin@welchwyse.com"
 app_license = "MIT"
 
 # ── DocType JS overrides ───────────────────────────────────────────────────────
-# Injects "Estimate History" tab into ERPNext Customer form
+# customer_estimates.js  → injects "Estimate History" tab into ERPNext Customer form
+# Corrugated Estimate DocType JS is loaded automatically from doctype directory
 doctype_js = {
     "Customer": "public/js/customer_estimates.js",
 }
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+# Export Corrugated Estimating Settings so default values ship with the app.
+# Run: bench --site <site> export-fixtures --app corrugated_estimating
 fixtures = [
     {
         "doctype": "Custom Field",
@@ -20,5 +23,15 @@ fixtures = [
                 "Customer-estimate_history_section",
             ]]
         ]
-    }
+    },
+    # Export the singleton settings doc so installs get sensible defaults
+    {
+        "doctype": "Corrugated Estimating Settings",
+        "filters": []
+    },
+    # Print format: full cost report PDF
+    {
+        "doctype": "Print Format",
+        "filters": [["name", "in", ["Corrugated Cost Report"]]]
+    },
 ]

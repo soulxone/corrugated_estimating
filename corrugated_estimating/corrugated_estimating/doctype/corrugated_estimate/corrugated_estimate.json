@@ -17,12 +17,16 @@
     "contact",
     "spec_section",
     "box_style",
+    "wall_type",
     "flute_type",
     "board_grade",
     "spec_col1",
     "length_inside",
     "width_inside",
     "depth_inside",
+    "annual_quantity",
+    "wax_water_resist",
+    "die_cut_special",
     "blank_section",
     "blank_length",
     "blank_width",
@@ -34,6 +38,19 @@
     "files_col",
     "cad_file",
     "print_artwork",
+    "cost_model_section",
+    "board_cost_default_msf",
+    "waste_pct",
+    "overhead_pct",
+    "cost_model_col",
+    "target_margin_pct",
+    "print_addon_per_color_msf",
+    "tooling_section",
+    "tooling_cost",
+    "setup_cost",
+    "tooling_col",
+    "freight_mode",
+    "freight_manual_per_unit",
     "qty_section",
     "quantities",
     "notes_section",
@@ -119,6 +136,14 @@
       "in_list_view": 1
     },
     {
+      "fieldname": "wall_type",
+      "fieldtype": "Select",
+      "label": "Wall Type",
+      "options": "\nSingle Wall\nDouble Wall\nTriple Wall",
+      "default": "Single Wall",
+      "in_list_view": 1
+    },
+    {
       "fieldname": "flute_type",
       "fieldtype": "Link",
       "label": "Flute Type",
@@ -148,6 +173,22 @@
       "fieldname": "depth_inside",
       "fieldtype": "Float",
       "label": "Depth Inside (in)"
+    },
+    {
+      "fieldname": "annual_quantity",
+      "fieldtype": "Int",
+      "label": "Annual Quantity",
+      "description": "Customer's estimated annual usage — used for reference and sales reporting"
+    },
+    {
+      "fieldname": "wax_water_resist",
+      "fieldtype": "Check",
+      "label": "Wax / Water Resistant Treatment"
+    },
+    {
+      "fieldname": "die_cut_special",
+      "fieldtype": "Check",
+      "label": "Die-Cut / Special Processing"
     },
     {
       "fieldname": "blank_section",
@@ -209,6 +250,87 @@
       "fieldname": "print_artwork",
       "fieldtype": "Attach",
       "label": "Print Artwork"
+    },
+    {
+      "fieldname": "cost_model_section",
+      "fieldtype": "Section Break",
+      "label": "Cost Model & Assumptions",
+      "collapsible": 1,
+      "description": "These values drive the full cost breakdown in the quantity table below. Defaults can be set in Corrugated Estimating Settings."
+    },
+    {
+      "fieldname": "board_cost_default_msf",
+      "fieldtype": "Currency",
+      "label": "Default Board Cost ($/MSF)",
+      "default": "180",
+      "description": "Default board cost applied to new quantity rows if not overridden per-row"
+    },
+    {
+      "fieldname": "waste_pct",
+      "fieldtype": "Float",
+      "label": "Waste %",
+      "default": "8",
+      "description": "Sheet waste factor applied to blank area before calculating material cost"
+    },
+    {
+      "fieldname": "overhead_pct",
+      "fieldtype": "Float",
+      "label": "Overhead %",
+      "default": "15",
+      "description": "Overhead as a percentage of converting cost"
+    },
+    {
+      "fieldname": "cost_model_col",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "target_margin_pct",
+      "fieldtype": "Float",
+      "label": "Target Gross Margin %",
+      "default": "35",
+      "description": "Sets sell price via margin pricing: Sell = COGS / (1 - margin%). If 0, uses per-row Markup %."
+    },
+    {
+      "fieldname": "print_addon_per_color_msf",
+      "fieldtype": "Float",
+      "label": "Print Add-on per Color ($/MSF)",
+      "default": "4",
+      "description": "Additional board/ink cost per color per MSF of blank area"
+    },
+    {
+      "fieldname": "tooling_section",
+      "fieldtype": "Section Break",
+      "label": "One-Time Charges & Freight",
+      "collapsible": 1,
+      "description": "Tooling and setup costs are amortized (divided by quantity) in each quantity break row."
+    },
+    {
+      "fieldname": "tooling_cost",
+      "fieldtype": "Currency",
+      "label": "Tooling / Die Cost ($)"
+    },
+    {
+      "fieldname": "setup_cost",
+      "fieldtype": "Currency",
+      "label": "Press / Setup Cost ($)"
+    },
+    {
+      "fieldname": "tooling_col",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "freight_mode",
+      "fieldtype": "Select",
+      "label": "Freight Mode",
+      "options": "\nNone\nLTL\nTL\nManual",
+      "default": "LTL",
+      "description": "LTL and TL rates come from Corrugated Estimating Settings. Manual uses the field below."
+    },
+    {
+      "fieldname": "freight_manual_per_unit",
+      "fieldtype": "Currency",
+      "label": "Manual Freight / Unit ($)",
+      "depends_on": "eval:doc.freight_mode == 'Manual'"
     },
     {
       "fieldname": "qty_section",

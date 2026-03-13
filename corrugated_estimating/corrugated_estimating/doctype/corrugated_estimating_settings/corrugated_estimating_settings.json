@@ -1,0 +1,209 @@
+{
+  "actions": [],
+  "creation": "2026-03-12 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "issingle": 1,
+  "field_order": [
+    "machine_rates_section",
+    "ffg_rate",
+    "slot_rate",
+    "diecut_rate",
+    "machine_col",
+    "glue_rate",
+    "bundle_rate",
+    "qc_rate",
+    "freight_section",
+    "ltl_rate_cwt",
+    "tl_rate_mile",
+    "freight_col",
+    "tl_haul_miles",
+    "dim_factor",
+    "boxes_per_pallet",
+    "benchmark_section",
+    "wt_rate_per_lb",
+    "sqin_rate",
+    "benchmark_col",
+    "wax_cost_msf",
+    "print_addon_default",
+    "defaults_section",
+    "default_waste_pct",
+    "default_overhead_pct",
+    "defaults_col",
+    "default_target_margin_pct",
+    "default_board_cost_msf"
+  ],
+  "fields": [
+    {
+      "fieldname": "machine_rates_section",
+      "fieldtype": "Section Break",
+      "label": "Machine Rates ($/MSF)"
+    },
+    {
+      "fieldname": "ffg_rate",
+      "fieldtype": "Float",
+      "label": "FFG / Flexo Rate",
+      "default": "55",
+      "description": "Flexo folder-gluer machine rate per 1,000 sq ft"
+    },
+    {
+      "fieldname": "slot_rate",
+      "fieldtype": "Float",
+      "label": "Slotting Rate",
+      "default": "12"
+    },
+    {
+      "fieldname": "diecut_rate",
+      "fieldtype": "Float",
+      "label": "Die Cut Rate",
+      "default": "0",
+      "description": "Additional rate when Die-Cut processing is enabled"
+    },
+    {
+      "fieldname": "machine_col",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "glue_rate",
+      "fieldtype": "Float",
+      "label": "Glue / Stitching Rate",
+      "default": "6.5"
+    },
+    {
+      "fieldname": "bundle_rate",
+      "fieldtype": "Float",
+      "label": "Bundling Rate",
+      "default": "4"
+    },
+    {
+      "fieldname": "qc_rate",
+      "fieldtype": "Float",
+      "label": "QC / Inspection Rate",
+      "default": "3.5"
+    },
+    {
+      "fieldname": "freight_section",
+      "fieldtype": "Section Break",
+      "label": "Freight Defaults"
+    },
+    {
+      "fieldname": "ltl_rate_cwt",
+      "fieldtype": "Float",
+      "label": "LTL Rate ($/cwt)",
+      "default": "18.5",
+      "description": "Less-than-truckload freight rate per hundred-weight (cwt)"
+    },
+    {
+      "fieldname": "tl_rate_mile",
+      "fieldtype": "Float",
+      "label": "TL Rate ($/mile)",
+      "default": "3.2",
+      "description": "Full truckload freight rate per mile"
+    },
+    {
+      "fieldname": "freight_col",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "tl_haul_miles",
+      "fieldtype": "Float",
+      "label": "Avg TL Haul (miles)",
+      "default": "500"
+    },
+    {
+      "fieldname": "dim_factor",
+      "fieldtype": "Float",
+      "label": "Dim Weight Factor",
+      "default": "139",
+      "description": "Cubic inches per pound for dimensional weight (standard = 139)"
+    },
+    {
+      "fieldname": "boxes_per_pallet",
+      "fieldtype": "Float",
+      "label": "Boxes per Pallet",
+      "default": "40",
+      "description": "Average boxes per pallet for TL load calculation"
+    },
+    {
+      "fieldname": "benchmark_section",
+      "fieldtype": "Section Break",
+      "label": "Alternative Pricing Benchmarks"
+    },
+    {
+      "fieldname": "wt_rate_per_lb",
+      "fieldtype": "Float",
+      "label": "Weight-Based Rate ($/lb)",
+      "default": "0.75",
+      "description": "Alternative sell price model: box weight × this rate"
+    },
+    {
+      "fieldname": "sqin_rate",
+      "fieldtype": "Float",
+      "label": "Square-Inch Rate ($/sq in)",
+      "default": "0.0024",
+      "description": "Alternative sell price model: blank area (sq in) × this rate"
+    },
+    {
+      "fieldname": "benchmark_col",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "wax_cost_msf",
+      "fieldtype": "Float",
+      "label": "Wax Treatment Cost ($/MSF)",
+      "default": "0.10",
+      "description": "Additional material cost per MSF when wax/water-resistant treatment is selected"
+    },
+    {
+      "fieldname": "print_addon_default",
+      "fieldtype": "Float",
+      "label": "Print Add-on Default ($/color/MSF)",
+      "default": "4",
+      "description": "Default print add-on per color — used if estimate doesn't override it"
+    },
+    {
+      "fieldname": "defaults_section",
+      "fieldtype": "Section Break",
+      "label": "Estimate Defaults"
+    },
+    {
+      "fieldname": "default_waste_pct",
+      "fieldtype": "Float",
+      "label": "Default Waste %",
+      "default": "8"
+    },
+    {
+      "fieldname": "default_overhead_pct",
+      "fieldtype": "Float",
+      "label": "Default Overhead %",
+      "default": "15"
+    },
+    {
+      "fieldname": "defaults_col",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "default_target_margin_pct",
+      "fieldtype": "Float",
+      "label": "Default Target Gross Margin %",
+      "default": "35"
+    },
+    {
+      "fieldname": "default_board_cost_msf",
+      "fieldtype": "Currency",
+      "label": "Default Board Cost ($/MSF)",
+      "default": "180"
+    }
+  ],
+  "links": [],
+  "modified": "2026-03-12 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Corrugated Estimating",
+  "name": "Corrugated Estimating Settings",
+  "owner": "Administrator",
+  "permissions": [
+    {"read": 1, "write": 1, "role": "System Manager"},
+    {"read": 1, "role": "Sales Manager"}
+  ],
+  "track_changes": 1
+}

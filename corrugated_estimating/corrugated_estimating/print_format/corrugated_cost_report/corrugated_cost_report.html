@@ -1,0 +1,173 @@
+<!-- =========================================================
+     Corrugated Cost Report – Frappe Print Format (Jinja)
+     DocType: Corrugated Estimate
+     ========================================================= -->
+
+<style>
+  /* ── Base ── */
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #222; }
+  h2   { font-size: 16px; margin: 0 0 4px; color: #1a6bb0; }
+  h3   { font-size: 12px; color: #1a6bb0; border-bottom: 1px solid #ccc;
+         padding-bottom: 4px; margin: 14px 0 6px; }
+
+  /* ── Header strip ── */
+  .rpt-header { display: flex; justify-content: space-between;
+                border-bottom: 2px solid #1a6bb0; padding-bottom: 10px; margin-bottom: 14px; }
+  .rpt-header .right { text-align: right; }
+
+  /* ── 4-col grid for spec fields ── */
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 6px; }
+  .field .lbl  { font-size: 9px; color: #888; text-transform: uppercase; }
+  .field .val  { font-weight: bold; font-size: 11px; }
+
+  /* ── Quantity table ── */
+  table.qty-table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 6px; }
+  table.qty-table th { background: #1a6bb0; color: #fff; padding: 5px 7px; text-align: right; }
+  table.qty-table th:first-child { text-align: left; }
+  table.qty-table td { border-bottom: 1px solid #e5e5e5; padding: 4px 7px; text-align: right; }
+  table.qty-table td:first-child { text-align: left; font-weight: bold; }
+  table.qty-table tr:nth-child(even) td { background: #f7f9fb; }
+  table.qty-table .subtotal td { border-top: 1px solid #bbb; font-weight: bold; }
+
+  /* ── Notes ── */
+  .notes-box { background: #f5f8ff; border-left: 3px solid #1a6bb0;
+               padding: 8px 12px; margin-top: 10px; font-size: 10px; }
+
+  /* ── Footer ── */
+  .rpt-footer { margin-top: 20px; font-size: 9px; color: #aaa; text-align: center; }
+</style>
+
+<!-- ── Report Header ── -->
+<div class="rpt-header">
+  <div>
+    <h2>Corrugated Cost Report</h2>
+    <div>{{ doc.estimate_no or "DRAFT" }}
+      &nbsp;|&nbsp; {{ doc.estimate_date }}
+      &nbsp;|&nbsp; Status: <strong>{{ doc.status }}</strong>
+    </div>
+    {% if doc.valid_until %}
+    <div style="font-size:10px;color:#888;">Valid until: {{ doc.valid_until }}</div>
+    {% endif %}
+  </div>
+  <div class="right">
+    <div><strong>{{ doc.customer or doc.crm_lead or "—" }}</strong></div>
+    {% if doc.contact %}<div>{{ doc.contact }}</div>{% endif %}
+    <div>Sales Rep: {{ doc.sales_rep or "—" }}</div>
+  </div>
+</div>
+
+<!-- ── Box Specification ── -->
+<h3>Box Specification</h3>
+<div class="grid4">
+  <div class="field"><div class="lbl">Box Style</div><div class="val">{{ doc.box_style or "—" }}</div></div>
+  <div class="field"><div class="lbl">Wall Type</div><div class="val">{{ doc.wall_type or "Single Wall" }}</div></div>
+  <div class="field"><div class="lbl">Flute</div><div class="val">{{ doc.flute_type or "—" }}</div></div>
+  <div class="field"><div class="lbl">Board Grade</div><div class="val">{{ doc.board_grade or "—" }}</div></div>
+
+  <div class="field"><div class="lbl">Inside L × W × D</div>
+    <div class="val">{{ doc.length_inside or 0 }}" × {{ doc.width_inside or 0 }}" × {{ doc.depth_inside or 0 }}"</div>
+  </div>
+  <div class="field"><div class="lbl">Blank L × W</div>
+    <div class="val">{{ "%.3f"|format(doc.blank_length or 0) }}" × {{ "%.3f"|format(doc.blank_width or 0) }}"</div>
+  </div>
+  <div class="field"><div class="lbl">Blank Area</div>
+    <div class="val">{{ "%.4f"|format(doc.blank_area_sqft or 0) }} sq ft</div>
+  </div>
+  <div class="field"><div class="lbl">Annual Qty</div>
+    <div class="val">{{ "{:,}".format(doc.annual_quantity or 0) if doc.annual_quantity else "—" }}</div>
+  </div>
+</div>
+
+<!-- ── Print & Finishing ── -->
+<h3>Print &amp; Finishing</h3>
+<div class="grid4">
+  <div class="field"><div class="lbl"># Colors</div><div class="val">{{ doc.num_colors or 0 }}</div></div>
+  <div class="field"><div class="lbl">Print Method</div><div class="val">{{ doc.print_method or "—" }}</div></div>
+  <div class="field"><div class="lbl">Coating</div><div class="val">{{ doc.coating or "None" }}</div></div>
+  <div class="field"><div class="lbl">Wax Treatment</div>
+    <div class="val">{{ "Yes" if doc.wax_water_resist else "No" }}</div>
+  </div>
+  <div class="field"><div class="lbl">Die-Cut</div>
+    <div class="val">{{ "Yes" if doc.die_cut_special else "No" }}</div>
+  </div>
+  {% if doc.cad_file %}
+  <div class="field"><div class="lbl">CAD File</div><div class="val">{{ doc.cad_file }}</div></div>
+  {% endif %}
+  {% if doc.print_artwork %}
+  <div class="field"><div class="lbl">Print Artwork</div><div class="val">{{ doc.print_artwork }}</div></div>
+  {% endif %}
+</div>
+
+<!-- ── Cost Model Assumptions ── -->
+<h3>Cost Model Assumptions</h3>
+<div class="grid4">
+  <div class="field"><div class="lbl">Default Board Cost</div>
+    <div class="val">${{ "%.2f"|format(doc.board_cost_default_msf or 180) }}/MSF</div>
+  </div>
+  <div class="field"><div class="lbl">Waste %</div><div class="val">{{ doc.waste_pct or 8 }}%</div></div>
+  <div class="field"><div class="lbl">Overhead %</div><div class="val">{{ doc.overhead_pct or 15 }}%</div></div>
+  <div class="field"><div class="lbl">Target Margin %</div>
+    <div class="val">{{ doc.target_margin_pct or 35 }}%</div>
+  </div>
+  <div class="field"><div class="lbl">Print Add-on</div>
+    <div class="val">${{ "%.2f"|format(doc.print_addon_per_color_msf or 4) }}/color/MSF</div>
+  </div>
+  <div class="field"><div class="lbl">Tooling / Die</div>
+    <div class="val">${{ "%.2f"|format(doc.tooling_cost or 0) }}</div>
+  </div>
+  <div class="field"><div class="lbl">Setup Cost</div>
+    <div class="val">${{ "%.2f"|format(doc.setup_cost or 0) }}</div>
+  </div>
+  <div class="field"><div class="lbl">Freight Mode</div>
+    <div class="val">{{ doc.freight_mode or "LTL" }}</div>
+  </div>
+</div>
+
+<!-- ── Quantity Breaks & Pricing ── -->
+<h3>Quantity Breaks &amp; Pricing</h3>
+<table class="qty-table">
+  <thead>
+    <tr>
+      <th>Quantity</th>
+      <th>Board $/MSF</th>
+      <th>Material</th>
+      <th>Converting</th>
+      <th>Overhead</th>
+      <th>Amort. Fixed</th>
+      <th>Freight</th>
+      <th>Total COGS</th>
+      <th>Sell / Unit</th>
+      <th>Sell / M</th>
+      <th>Extended</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in doc.quantities %}
+    <tr>
+      <td>{{ "{:,}".format(row.quantity) }}</td>
+      <td>${{ "%.2f"|format(row.board_cost_msf or 0) }}</td>
+      <td>${{ "%.2f"|format(row.material_cost or 0) }}</td>
+      <td>${{ "%.2f"|format(row.converting_cost or 0) }}</td>
+      <td>${{ "%.2f"|format(row.overhead_cost or 0) }}</td>
+      <td>${{ "%.2f"|format(row.amort_fixed or 0) }}</td>
+      <td>${{ "%.2f"|format(row.freight_cost or 0) }}</td>
+      <td><strong>${{ "%.2f"|format(row.total_cogs or 0) }}</strong></td>
+      <td><strong>${{ "%.4f"|format(row.sell_price_unit or 0) }}</strong></td>
+      <td>${{ "%.2f"|format(row.sell_price_m or 0) }}</td>
+      <td><strong>${{ "%.2f"|format(row.extended_total or 0) }}</strong></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- ── Notes ── -->
+{% if doc.customer_notes %}
+<h3>Customer Notes</h3>
+<div class="notes-box">{{ doc.customer_notes }}</div>
+{% endif %}
+
+<!-- ── Footer ── -->
+<div class="rpt-footer">
+  Welchwyse Corrugated Estimating &nbsp;|&nbsp; {{ doc.estimate_no or "Draft" }}
+  &nbsp;|&nbsp; Confidential — for {{ doc.customer or "Customer" }} use only
+</div>

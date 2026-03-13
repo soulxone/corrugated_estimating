@@ -1,93 +1,373 @@
 /* =============================================================================
-   Corrugated Estimate – form controller
-   Handles client-side recalculation of blank size and quantity pricing.
-   Server also recalculates on save via corrugated_estimate.py before_save().
+   Corrugated Estimate – Form Controller  (v2 Full Cost Model)
+   ============================================================================
+   Mirrors the Welch Wyse Box Estimator HTML tool inside Frappe.
+
+   Cost model:  Material → Converting → Overhead → Amort.Fixed → Freight → COGS
+   Sell price:  COGS / (1 − target_margin%)   or   COGS × (1 + markup%)
+
+   All recalculation is driven server-side via API (uses Settings machine rates).
+   The form responds instantly to any change that affects the cost breakdown.
    ============================================================================= */
+
+// ── Field trigger lists ──────────────────────────────────────────────────────
+
+const _BLANK_TRIGGERS = [
+    "length_inside", "width_inside", "depth_inside", "flute_type", "box_style",
+];
+
+const _ROW_TRIGGERS = [
+    "waste_pct", "overhead_pct", "target_margin_pct",
+    "print_addon_per_color_msf", "num_colors", "print_method",
+    "tooling_cost", "setup_cost",
+    "freight_mode", "freight_manual_per_unit",
+    "wax_water_resist", "die_cut_special",
+    "board_grade",
+];
+
+// ── Parent form handlers ──────────────────────────────────────────────────────
+
 frappe.ui.form.on("Corrugated Estimate", {
 
-	// ── Trigger recalc when any dimension changes ──────────────────────────────
-	length_inside: function(frm) { frm.trigger("recalc_blank"); },
-	width_inside:  function(frm) { frm.trigger("recalc_blank"); },
-	depth_inside:  function(frm) { frm.trigger("recalc_blank"); },
-	flute_type:    function(frm) { frm.trigger("recalc_blank"); },
-	box_style:     function(frm) { frm.trigger("recalc_blank"); },
+    // ── On form load: apply default cost model values ──────────────────────
+    onload: function(frm) {
+        if (frm.is_new()) {
+            frappe.call({
+                method: "corrugated_estimating.corrugated_estimating.api.get_estimating_settings",
+                callback: function(r) {
+                    if (!r.message) return;
+                    var s = r.message;
+                    if (!frm.doc.waste_pct)              frm.set_value("waste_pct",              s.default_waste_pct         || 8);
+                    if (!frm.doc.overhead_pct)           frm.set_value("overhead_pct",           s.default_overhead_pct      || 15);
+                    if (!frm.doc.target_margin_pct)      frm.set_value("target_margin_pct",      s.default_target_margin_pct || 35);
+                    if (!frm.doc.board_cost_default_msf) frm.set_value("board_cost_default_msf", s.default_board_cost_msf    || 180);
+                    if (!frm.doc.print_addon_per_color_msf) frm.set_value("print_addon_per_color_msf", s.print_addon_default || 4);
+                }
+            });
+        }
+    },
 
-	recalc_blank: function(frm) {
-		var L = frm.doc.length_inside, W = frm.doc.width_inside, D = frm.doc.depth_inside;
-		if (!L || !W || !D) return;
+    // ── Custom buttons ─────────────────────────────────────────────────────
+    refresh: function(frm) {
+        if (!frm.is_new()) {
+            frm.add_custom_button(__("Sensitivity Analysis"), function() {
+                _show_sensitivity_dialog(frm);
+            }, __("Estimating"));
 
-		frappe.call({
-			method: "corrugated_estimating.corrugated_estimating.api.get_blank_size",
-			args: {
-				box_style: frm.doc.box_style || "RSC",
-				length_inside: L,
-				width_inside:  W,
-				depth_inside:  D,
-				flute_type: frm.doc.flute_type || "",
-			},
-			callback: function(r) {
-				if (r.message) {
-					frm.set_value("blank_length",    r.message.blank_length);
-					frm.set_value("blank_width",     r.message.blank_width);
-					frm.set_value("blank_area_sqft", r.message.blank_area_sqft);
-					frm.trigger("recalc_all_rows");
-				}
-			}
-		});
-	},
+            frm.add_custom_button(__("Print Cost Report"), function() {
+                _print_cost_report(frm);
+            }, __("Estimating"));
+        }
+    },
 
-	// ── Trigger pricing recalc when print method or colors change ─────────────
-	print_method: function(frm) { frm.trigger("recalc_all_rows"); },
-	num_colors:   function(frm) { frm.trigger("recalc_all_rows"); },
+    // ── Blank-size triggers ────────────────────────────────────────────────
+    length_inside: function(frm) { frm.trigger("recalc_blank"); },
+    width_inside:  function(frm) { frm.trigger("recalc_blank"); },
+    depth_inside:  function(frm) { frm.trigger("recalc_blank"); },
+    flute_type:    function(frm) { frm.trigger("recalc_blank"); },
+    box_style:     function(frm) { frm.trigger("recalc_blank"); },
 
-	recalc_all_rows: function(frm) {
-		(frm.doc.quantities || []).forEach(function(row) {
-			frm.trigger_child("Corrugated Estimate Quantity", "quantity", row.name);
-		});
-	},
+    recalc_blank: function(frm) {
+        var L = frm.doc.length_inside, W = frm.doc.width_inside, D = frm.doc.depth_inside;
+        if (!L || !W || !D) return;
+
+        frappe.call({
+            method: "corrugated_estimating.corrugated_estimating.api.get_blank_size",
+            args: {
+                box_style:     frm.doc.box_style || "RSC",
+                length_inside: L,
+                width_inside:  W,
+                depth_inside:  D,
+                flute_type:    frm.doc.flute_type || "",
+            },
+            callback: function(r) {
+                if (r.message) {
+                    frm.set_value("blank_length",    r.message.blank_length);
+                    frm.set_value("blank_width",     r.message.blank_width);
+                    frm.set_value("blank_area_sqft", r.message.blank_area_sqft);
+                    frm.trigger("recalc_all_rows");
+                }
+            }
+        });
+    },
+
+    // ── Cost-model triggers ────────────────────────────────────────────────
+    waste_pct:                function(frm) { frm.trigger("recalc_all_rows"); },
+    overhead_pct:             function(frm) { frm.trigger("recalc_all_rows"); },
+    target_margin_pct:        function(frm) { frm.trigger("recalc_all_rows"); },
+    print_addon_per_color_msf:function(frm) { frm.trigger("recalc_all_rows"); },
+    num_colors:               function(frm) { frm.trigger("recalc_all_rows"); },
+    print_method:             function(frm) { frm.trigger("recalc_all_rows"); },
+    tooling_cost:             function(frm) { frm.trigger("recalc_all_rows"); },
+    setup_cost:               function(frm) { frm.trigger("recalc_all_rows"); },
+    freight_mode:             function(frm) { frm.trigger("recalc_all_rows"); },
+    freight_manual_per_unit:  function(frm) { frm.trigger("recalc_all_rows"); },
+    wax_water_resist:         function(frm) { frm.trigger("recalc_all_rows"); },
+    die_cut_special:          function(frm) { frm.trigger("recalc_all_rows"); },
+    board_grade:              function(frm) { frm.trigger("recalc_all_rows"); },
+    board_cost_default_msf:   function(frm) { frm.trigger("recalc_all_rows"); },
+
+    recalc_all_rows: function(frm) {
+        if (!frm.doc.blank_area_sqft) return;
+        (frm.doc.quantities || []).forEach(function(row) {
+            _recalc_row(frm, row.doctype, row.name);
+        });
+    },
 });
 
-// ── Child table – recalc a single row when board cost or markup changes ───────
+
+// ── Child table handlers ──────────────────────────────────────────────────────
+
 frappe.ui.form.on("Corrugated Estimate Quantity", {
-	quantity:      function(frm, cdt, cdn) { _recalc_row(frm, cdt, cdn); },
-	board_cost_msf: function(frm, cdt, cdn) { _recalc_row(frm, cdt, cdn); },
-	markup_pct:    function(frm, cdt, cdn) { _recalc_row(frm, cdt, cdn); },
-	die_charge:    function(frm, cdt, cdn) { _recalc_row(frm, cdt, cdn); },
-	setup_charge:  function(frm, cdt, cdn) { _recalc_row(frm, cdt, cdn); },
+    quantity:      function(frm, cdt, cdn) { _recalc_row(frm, cdt, cdn); },
+    board_cost_msf:function(frm, cdt, cdn) { _recalc_row(frm, cdt, cdn); },
+    markup_pct:    function(frm, cdt, cdn) { _recalc_row(frm, cdt, cdn); },
+    die_charge:    function(frm, cdt, cdn) { _recalc_row(frm, cdt, cdn); },
+    plate_charges: function(frm, cdt, cdn) { _recalc_row(frm, cdt, cdn); },
+    setup_charge:  function(frm, cdt, cdn) { _recalc_row(frm, cdt, cdn); },
 });
+
+
+// ── Core recalc function (calls server API) ───────────────────────────────────
 
 function _recalc_row(frm, cdt, cdn) {
-	var row = frappe.get_doc(cdt, cdn);
-	var qty = parseInt(row.quantity) || 0;
-	if (!qty) return;
+    var row = frappe.get_doc(cdt, cdn);
+    if (!row || !row.quantity) return;
 
-	var blank_area = parseFloat(frm.doc.blank_area_sqft) || 0;
-	var board_cost = parseFloat(row.board_cost_msf) || 0;
-	var num_colors = parseInt(frm.doc.num_colors) || 0;
-	var markup     = parseFloat(row.markup_pct) || 30;
+    var blank_area  = parseFloat(frm.doc.blank_area_sqft) || 0;
+    if (!blank_area) return;
 
-	// Material cost
-	var mat_cost = (blank_area / 1000) * board_cost * qty;
-	frappe.model.set_value(cdt, cdn, "material_cost", Math.round(mat_cost * 100) / 100);
+    // Use per-row board cost if set, else use estimate-level default
+    var board_cost  = parseFloat(row.board_cost_msf) || parseFloat(frm.doc.board_cost_default_msf) || 180;
 
-	// Fetch print method charges then complete calc
-	if (frm.doc.print_method) {
-		frappe.db.get_doc("Corrugated Print Method", frm.doc.print_method).then(function(pm) {
-			var plates = num_colors * (pm.per_color_plate_charge || 0);
-			frappe.model.set_value(cdt, cdn, "plate_charges", Math.round(plates * 100) / 100);
-			_finish_row_calc(cdt, cdn, mat_cost, plates, row.die_charge, row.setup_charge, qty, markup);
-		});
-	} else {
-		_finish_row_calc(cdt, cdn, mat_cost, row.plate_charges, row.die_charge, row.setup_charge, qty, markup);
-	}
+    frappe.call({
+        method: "corrugated_estimating.corrugated_estimating.api.calculate_row",
+        args: {
+            quantity:                  row.quantity,
+            blank_area_sqft:           blank_area,
+            board_cost_msf:            board_cost,
+            waste_pct:                 frm.doc.waste_pct              || 8,
+            num_colors:                frm.doc.num_colors             || 0,
+            print_addon_per_color_msf: frm.doc.print_addon_per_color_msf || 4,
+            wax_treat:                 frm.doc.wax_water_resist ? 1 : 0,
+            die_cut:                   frm.doc.die_cut_special ? 1 : 0,
+            overhead_pct:              frm.doc.overhead_pct           || 15,
+            target_margin_pct:         frm.doc.target_margin_pct      || 35,
+            tooling_cost:              frm.doc.tooling_cost           || 0,
+            setup_cost:                frm.doc.setup_cost             || 0,
+            freight_mode:              frm.doc.freight_mode           || "LTL",
+            freight_manual_per_unit:   frm.doc.freight_manual_per_unit || 0,
+            board_grade:               frm.doc.board_grade            || "",
+            markup_pct:                row.markup_pct                 || 30,
+            plate_charges:             row.plate_charges              || 0,
+            die_charge:                row.die_charge                 || 0,
+            setup_charge:              row.setup_charge               || 0,
+        },
+        callback: function(r) {
+            if (!r.message) return;
+            var m = r.message;
+            // Update all calc fields on the row
+            var fields = [
+                "material_cost", "converting_cost", "overhead_cost",
+                "amort_fixed", "freight_cost", "total_cogs", "total_cost",
+                "sell_price_m", "sell_price_unit", "extended_total",
+            ];
+            fields.forEach(function(f) {
+                if (m[f] !== undefined) {
+                    frappe.model.set_value(cdt, cdn, f, m[f]);
+                }
+            });
+            frm.refresh_field("quantities");
+        }
+    });
 }
 
-function _finish_row_calc(cdt, cdn, mat_cost, plate_charges, die_charge, setup_charge, qty, markup) {
-	var total = (mat_cost || 0) + (plate_charges || 0) + (die_charge || 0) + (setup_charge || 0);
-	var sell  = total * (1 + (markup / 100));
 
-	frappe.model.set_value(cdt, cdn, "total_cost",      Math.round(total * 100) / 100);
-	frappe.model.set_value(cdt, cdn, "sell_price_m",    Math.round((sell / qty) * 1000 * 100) / 100);
-	frappe.model.set_value(cdt, cdn, "sell_price_unit", Math.round((sell / qty) * 1000000) / 1000000);
-	frappe.model.set_value(cdt, cdn, "extended_total",  Math.round(sell * 100) / 100);
+// ── Sensitivity Analysis Dialog ───────────────────────────────────────────────
+
+function _show_sensitivity_dialog(frm) {
+    if (!frm.doc.blank_area_sqft) {
+        frappe.msgprint(__("Please enter box dimensions to calculate blank area first."));
+        return;
+    }
+
+    frappe.call({
+        method: "corrugated_estimating.corrugated_estimating.api.get_sensitivity_matrix",
+        args: { estimate_name: frm.doc.name },
+        freeze: true,
+        freeze_message: __("Calculating sensitivity matrix…"),
+        callback: function(r) {
+            if (!r.message) return;
+            var data = r.message;
+            var html = _build_sensitivity_table(data);
+
+            frappe.msgprint({
+                title: __("Sensitivity Analysis — Sell Price / Unit"),
+                indicator: "blue",
+                message: html,
+                wide: true,
+            });
+        }
+    });
+}
+
+function _build_sensitivity_table(data) {
+    var board_costs = data.board_costs;
+    var quantities  = data.quantities;
+    var matrix      = data.matrix;
+
+    // Find min/max for heat-map colouring
+    var flat = [].concat.apply([], matrix);
+    var mn = Math.min.apply(null, flat), mx = Math.max.apply(null, flat);
+
+    var html = "<style>";
+    html += ".sens-table { border-collapse: collapse; width: 100%; font-size: 12px; }";
+    html += ".sens-table th, .sens-table td { border: 1px solid #ddd; padding: 6px 10px; text-align: center; }";
+    html += ".sens-table th { background: #2490EF; color: #fff; }";
+    html += ".sens-table .rowhead { background: #f0f4f8; font-weight: bold; }";
+    html += "</style>";
+    html += "<p style='margin-bottom:8px;font-size:12px;color:#888;'>";
+    html += "Rows = Board Cost ($/MSF) &nbsp;|&nbsp; Cols = Quantity &nbsp;|&nbsp; Values = Sell Price / Unit ($)</p>";
+    html += "<table class='sens-table'><thead><tr><th>$/MSF \\ Qty</th>";
+
+    quantities.forEach(function(q) {
+        html += "<th>" + _fmt_qty(q) + "</th>";
+    });
+    html += "</tr></thead><tbody>";
+
+    matrix.forEach(function(row, i) {
+        html += "<tr><td class='rowhead'>$" + board_costs[i] + "</td>";
+        row.forEach(function(val) {
+            var pct = mx > mn ? (val - mn) / (mx - mn) : 0.5;
+            // Heat map: green (low) → yellow → red (high) — inverted for sell price (lower cost = better)
+            var r = Math.round(255 * pct);
+            var g = Math.round(255 * (1 - pct));
+            var bg = "rgba(" + r + "," + g + ",80,0.25)";
+            html += "<td style='background:" + bg + ";'>$" + val.toFixed(4) + "</td>";
+        });
+        html += "</tr>";
+    });
+
+    html += "</tbody></table>";
+    return html;
+}
+
+function _fmt_qty(q) {
+    if (q >= 1000) return (q / 1000) + "K";
+    return q.toString();
+}
+
+
+// ── Print Cost Report ─────────────────────────────────────────────────────────
+
+function _print_cost_report(frm) {
+    // Build a full report and open it in a new window for printing
+    var doc = frm.doc;
+    var qty_rows = doc.quantities || [];
+
+    var win = window.open("", "_blank");
+    if (!win) { frappe.msgprint(__("Popup blocked. Please allow popups for this site.")); return; }
+
+    var rows_html = "";
+    qty_rows.forEach(function(row) {
+        rows_html += "<tr>";
+        rows_html += "<td>" + frappe.format(row.quantity, {fieldtype:"Int"}) + "</td>";
+        rows_html += "<td>$" + _f(row.board_cost_msf) + "</td>";
+        rows_html += "<td>$" + _f(row.material_cost) + "</td>";
+        rows_html += "<td>$" + _f(row.converting_cost) + "</td>";
+        rows_html += "<td>$" + _f(row.overhead_cost) + "</td>";
+        rows_html += "<td>$" + _f(row.amort_fixed) + "</td>";
+        rows_html += "<td>$" + _f(row.freight_cost) + "</td>";
+        rows_html += "<td><strong>$" + _f(row.total_cogs) + "</strong></td>";
+        rows_html += "<td><strong>$" + _f(row.sell_price_unit, 4) + "</strong></td>";
+        rows_html += "<td><strong>$" + _f(row.extended_total) + "</strong></td>";
+        rows_html += "</tr>";
+    });
+
+    var html = "<!DOCTYPE html><html><head>";
+    html += "<title>Cost Report – " + (doc.estimate_no || "New") + "</title>";
+    html += "<style>";
+    html += "body{font-family:Arial,sans-serif;font-size:12px;padding:20px;color:#222;}";
+    html += "h1{font-size:18px;margin:0 0 4px;}";
+    html += ".header{display:flex;justify-content:space-between;border-bottom:2px solid #2490EF;padding-bottom:10px;margin-bottom:16px;}";
+    html += ".section{margin-bottom:14px;}";
+    html += ".section h3{font-size:13px;border-bottom:1px solid #ccc;margin-bottom:6px;padding-bottom:4px;color:#2490EF;}";
+    html += ".grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;}";
+    html += ".field{margin-bottom:4px;} .label{color:#888;font-size:10px;} .value{font-weight:bold;}";
+    html += "table{width:100%;border-collapse:collapse;font-size:11px;}";
+    html += "th{background:#2490EF;color:#fff;padding:5px 8px;text-align:left;}";
+    html += "td{border-bottom:1px solid #eee;padding:5px 8px;}";
+    html += "tr:nth-child(even){background:#f9f9f9;}";
+    html += ".footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center;}";
+    html += "@media print{body{padding:0;} button{display:none;}}";
+    html += "</style></head><body>";
+
+    html += "<div class='header'>";
+    html += "<div><h1>Corrugated Cost Report</h1>";
+    html += "<div>" + (doc.estimate_no || "Draft") + " &nbsp;|&nbsp; ";
+    html += frappe.datetime.str_to_user(doc.estimate_date) + "</div></div>";
+    html += "<div style='text-align:right;'>";
+    html += "<div><strong>" + (doc.customer || doc.crm_lead || "—") + "</strong></div>";
+    html += "<div>Status: " + doc.status + "</div>";
+    html += "<div>Sales Rep: " + (doc.sales_rep || "—") + "</div>";
+    html += "</div></div>";
+
+    html += "<div class='section'><h3>Box Specification</h3><div class='grid'>";
+    html += _rf("Box Style",   doc.box_style);
+    html += _rf("Wall Type",   doc.wall_type);
+    html += _rf("Flute",       doc.flute_type);
+    html += _rf("Board Grade", doc.board_grade);
+    html += _rf("L × W × D",  (doc.length_inside||0) + '" × ' + (doc.width_inside||0) + '" × ' + (doc.depth_inside||0) + '"');
+    html += _rf("Blank Size",  (doc.blank_length||0).toFixed(3) + '" × ' + (doc.blank_width||0).toFixed(3) + '"');
+    html += _rf("Blank Area",  (doc.blank_area_sqft||0).toFixed(4) + " sq ft");
+    html += _rf("Annual Qty",  doc.annual_quantity ? frappe.format(doc.annual_quantity,{fieldtype:"Int"}) : "—");
+    html += "</div></div>";
+
+    html += "<div class='section'><h3>Print &amp; Finishing</h3><div class='grid'>";
+    html += _rf("# Colors",    doc.num_colors || 0);
+    html += _rf("Print Method",doc.print_method || "—");
+    html += _rf("Coating",     doc.coating || "None");
+    html += _rf("Wax Treat",   doc.wax_water_resist ? "Yes" : "No");
+    html += _rf("Die-Cut",     doc.die_cut_special ? "Yes" : "No");
+    html += "</div></div>";
+
+    html += "<div class='section'><h3>Cost Model Assumptions</h3><div class='grid'>";
+    html += _rf("Board Cost Default", "$" + _f(doc.board_cost_default_msf) + "/MSF");
+    html += _rf("Waste %",            (doc.waste_pct||8) + "%");
+    html += _rf("Overhead %",         (doc.overhead_pct||15) + "%");
+    html += _rf("Target Margin %",    (doc.target_margin_pct||35) + "%");
+    html += _rf("Print Add-on",       "$" + _f(doc.print_addon_per_color_msf) + "/color/MSF");
+    html += _rf("Tooling / Die",      "$" + _f(doc.tooling_cost));
+    html += _rf("Setup Cost",         "$" + _f(doc.setup_cost));
+    html += _rf("Freight Mode",       doc.freight_mode || "LTL");
+    html += "</div></div>";
+
+    html += "<div class='section'><h3>Quantity Breaks &amp; Pricing</h3>";
+    html += "<table><thead><tr>";
+    html += "<th>Qty</th><th>Board $/MSF</th><th>Material</th><th>Converting</th>";
+    html += "<th>Overhead</th><th>Amort.Fixed</th><th>Freight</th>";
+    html += "<th>Total COGS</th><th>Sell/Unit</th><th>Extended</th>";
+    html += "</tr></thead><tbody>" + rows_html + "</tbody></table></div>";
+
+    if (doc.customer_notes) {
+        html += "<div class='section'><h3>Customer Notes</h3><p>" + doc.customer_notes + "</p></div>";
+    }
+
+    html += "<div class='footer'>Generated by Welchwyse Corrugated Estimating · " + new Date().toLocaleString() + "</div>";
+    html += "<br><button onclick='window.print()' style='padding:8px 20px;background:#2490EF;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;'>🖨 Print / Save PDF</button>";
+    html += "</body></html>";
+
+    win.document.write(html);
+    win.document.close();
+}
+
+// ── Formatting helpers ────────────────────────────────────────────────────────
+
+function _f(val, decimals) {
+    decimals = decimals || 2;
+    return parseFloat(val || 0).toFixed(decimals);
+}
+
+function _rf(label, value) {
+    return "<div class='field'><div class='label'>" + label + "</div><div class='value'>" + (value || "—") + "</div></div>";
 }

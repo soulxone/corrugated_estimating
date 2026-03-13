@@ -4,7 +4,16 @@
   "doctype": "DocType",
   "editable_grid": 1,
   "engine": "InnoDB",
-  "field_order": ["grade_name", "test_type", "test_value", "description"],
+  "field_order": [
+    "grade_name",
+    "test_type",
+    "test_value",
+    "lbs_msf",
+    "col1",
+    "price_msf_low",
+    "price_msf_high",
+    "description"
+  ],
   "fields": [
     {
       "fieldname": "grade_name",
@@ -26,6 +35,29 @@
       "fieldtype": "Float",
       "label": "Test Value",
       "in_list_view": 1
+    },
+    {
+      "fieldname": "lbs_msf",
+      "fieldtype": "Float",
+      "label": "Weight (lbs/MSF)",
+      "description": "Board weight in pounds per 1,000 sq ft — used for freight calculations",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "col1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "price_msf_low",
+      "fieldtype": "Currency",
+      "label": "Price Low ($/MSF)",
+      "description": "Low end of typical market price range per MSF"
+    },
+    {
+      "fieldname": "price_msf_high",
+      "fieldtype": "Currency",
+      "label": "Price High ($/MSF)",
+      "description": "High end of typical market price range per MSF"
     },
     {
       "fieldname": "description",

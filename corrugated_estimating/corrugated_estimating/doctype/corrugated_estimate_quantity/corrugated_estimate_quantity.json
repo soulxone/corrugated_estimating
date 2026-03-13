@@ -9,16 +9,22 @@
     "quantity",
     "board_cost_msf",
     "material_cost",
+    "converting_cost",
     "col1",
-    "plate_charges",
-    "die_charge",
-    "setup_charge",
-    "total_cost",
+    "overhead_cost",
+    "amort_fixed",
+    "freight_cost",
+    "total_cogs",
     "col2",
     "markup_pct",
     "sell_price_m",
     "sell_price_unit",
-    "extended_total"
+    "extended_total",
+    "legacy_section",
+    "plate_charges",
+    "die_charge",
+    "setup_charge",
+    "total_cost"
   ],
   "fields": [
     {
@@ -34,7 +40,8 @@
       "fieldtype": "Currency",
       "label": "Board Cost / MSF ($)",
       "in_list_view": 1,
-      "columns": 2
+      "columns": 2,
+      "description": "Leave blank to use the default from Cost Model section"
     },
     {
       "fieldname": "material_cost",
@@ -45,30 +52,43 @@
       "columns": 2
     },
     {
+      "fieldname": "converting_cost",
+      "fieldtype": "Currency",
+      "label": "Converting Cost ($)",
+      "read_only": 1,
+      "in_list_view": 0
+    },
+    {
       "fieldname": "col1",
       "fieldtype": "Column Break"
     },
     {
-      "fieldname": "plate_charges",
+      "fieldname": "overhead_cost",
       "fieldtype": "Currency",
-      "label": "Plate Charges ($)"
+      "label": "Overhead ($)",
+      "read_only": 1
     },
     {
-      "fieldname": "die_charge",
+      "fieldname": "amort_fixed",
       "fieldtype": "Currency",
-      "label": "Die Charge ($)"
-    },
-    {
-      "fieldname": "setup_charge",
-      "fieldtype": "Currency",
-      "label": "Setup Charge ($)"
-    },
-    {
-      "fieldname": "total_cost",
-      "fieldtype": "Currency",
-      "label": "Total Cost ($)",
+      "label": "Amort. Fixed ($)",
       "read_only": 1,
-      "bold": 1
+      "description": "Tooling + Setup amortized across this quantity"
+    },
+    {
+      "fieldname": "freight_cost",
+      "fieldtype": "Currency",
+      "label": "Freight Cost ($)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "total_cogs",
+      "fieldtype": "Currency",
+      "label": "Total COGS ($)",
+      "read_only": 1,
+      "bold": 1,
+      "in_list_view": 1,
+      "columns": 2
     },
     {
       "fieldname": "col2",
@@ -78,7 +98,8 @@
       "fieldname": "markup_pct",
       "fieldtype": "Float",
       "label": "Markup %",
-      "default": "30"
+      "default": "30",
+      "description": "Used only if Target Margin % is 0 on the parent estimate"
     },
     {
       "fieldname": "sell_price_m",
@@ -104,6 +125,36 @@
       "bold": 1,
       "in_list_view": 1,
       "columns": 2
+    },
+    {
+      "fieldname": "legacy_section",
+      "fieldtype": "Section Break",
+      "label": "Legacy Cost Fields",
+      "collapsible": 1,
+      "collapsible_depends_on": "eval:false",
+      "description": "Older simplified cost fields kept for reference"
+    },
+    {
+      "fieldname": "plate_charges",
+      "fieldtype": "Currency",
+      "label": "Plate Charges ($)"
+    },
+    {
+      "fieldname": "die_charge",
+      "fieldtype": "Currency",
+      "label": "Die Charge ($)"
+    },
+    {
+      "fieldname": "setup_charge",
+      "fieldtype": "Currency",
+      "label": "Setup Charge ($)"
+    },
+    {
+      "fieldname": "total_cost",
+      "fieldtype": "Currency",
+      "label": "Total Cost - Simple ($)",
+      "read_only": 1,
+      "description": "Material + Plates + Die + Setup (simplified, pre-v2 model)"
     }
   ],
   "links": [],

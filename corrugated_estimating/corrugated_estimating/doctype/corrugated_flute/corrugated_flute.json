@@ -4,7 +4,16 @@
   "doctype": "DocType",
   "editable_grid": 1,
   "engine": "InnoDB",
-  "field_order": ["flute_code", "caliper_mm", "liner_gsm", "medium_gsm", "description"],
+  "field_order": [
+    "flute_code",
+    "caliper_mm",
+    "thickness_in",
+    "flutes_per_ft",
+    "col1",
+    "liner_gsm",
+    "medium_gsm",
+    "description"
+  ],
   "fields": [
     {
       "fieldname": "flute_code",
@@ -20,6 +29,23 @@
       "label": "Caliper (mm)",
       "reqd": 1,
       "in_list_view": 1
+    },
+    {
+      "fieldname": "thickness_in",
+      "fieldtype": "Float",
+      "label": "Thickness (in)",
+      "description": "Flute thickness in inches (e.g. C=0.1563, B=0.125, E=0.0625)",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "flutes_per_ft",
+      "fieldtype": "Float",
+      "label": "Flutes per Foot",
+      "description": "Number of flutes per linear foot (A=36, B=50, C=42, E=90, F=128)"
+    },
+    {
+      "fieldname": "col1",
+      "fieldtype": "Column Break"
     },
     {
       "fieldname": "liner_gsm",
