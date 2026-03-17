@@ -39,13 +39,16 @@
             "type": "DocType"
         }
     ],
-    "content": "[{\"type\":\"card\",\"data\":{\"card_name\":\"Estimates\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Box Setup\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}}]",
-    "cards": [
-        {"label": "Estimates", "hidden": 0},
-        {"label": "Box Setup", "hidden": 0},
-        {"label": "Settings", "hidden": 0}
-    ],
     "links": [
+        {
+            "hidden": 0,
+            "is_query_report": 0,
+            "label": "Estimates",
+            "link_to": "",
+            "link_type": "DocType",
+            "onboard": 0,
+            "type": "Card Break"
+        },
         {
             "dependencies": "",
             "hidden": 0,
@@ -55,6 +58,15 @@
             "link_type": "DocType",
             "onboard": 1,
             "type": "Link"
+        },
+        {
+            "hidden": 0,
+            "is_query_report": 0,
+            "label": "Box Setup",
+            "link_to": "",
+            "link_type": "DocType",
+            "onboard": 0,
+            "type": "Card Break"
         },
         {
             "hidden": 0,
@@ -91,6 +103,15 @@
             "link_type": "DocType",
             "onboard": 0,
             "type": "Link"
+        },
+        {
+            "hidden": 0,
+            "is_query_report": 0,
+            "label": "Settings",
+            "link_to": "",
+            "link_type": "DocType",
+            "onboard": 0,
+            "type": "Card Break"
         },
         {
             "hidden": 0,
