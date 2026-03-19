@@ -5,6 +5,8 @@ app_description = "Corrugated box estimating with full revision history, linked 
 app_email = "admin@welchwyse.com"
 app_license = "MIT"
 
+app_include_js = "/assets/corrugated_estimating/js/corrugated_estimating.bundle.js"
+
 # ── DocType JS overrides ───────────────────────────────────────────────────────
 # customer_estimates.js  → injects "Estimate History" tab into ERPNext Customer form
 # Corrugated Estimate DocType JS is loaded automatically from doctype directory
@@ -41,6 +43,6 @@ fixtures = [
     # ── Workspace: Corrugated Estimating desk page ────────────────────────────
     {
         "doctype": "Workspace",
-        "filters": [["name", "in", ["Corrugated Estimating"]]]
+        "filters": [["name", "in", ["Estimating", "Corrugated Estimating"]]]
     },
 ]
