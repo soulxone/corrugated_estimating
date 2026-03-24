@@ -241,3 +241,20 @@ def get_routing_summary(estimate_name):
     """Return production routing summary with time/cost breakdown."""
     doc = frappe.get_doc("Corrugated Estimate", estimate_name)
     return doc.get_routing_summary()
+
+
+# ── CAD File Generation API ──────────────────────────────────────────────────
+
+@frappe.whitelist()
+def generate_cad_file(estimate_name):
+    """Manually trigger DXF CAD file generation for an estimate."""
+    from corrugated_estimating.corrugated_estimating.cad_generator import generate_cad_for_estimate
+    try:
+        file_url = generate_cad_for_estimate(estimate_name)
+        if file_url:
+            frappe.db.commit()
+            return {"status": "success", "file_url": file_url}
+        return {"status": "error", "message": "Could not generate CAD file. Check box dimensions."}
+    except Exception as e:
+        frappe.log_error("CAD generation failed", frappe.get_traceback())
+        return {"status": "error", "message": str(e)}

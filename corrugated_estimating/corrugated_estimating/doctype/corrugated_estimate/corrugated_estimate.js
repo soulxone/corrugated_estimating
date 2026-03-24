@@ -83,6 +83,30 @@ frappe.ui.form.on("Corrugated Estimate", {
                 _show_routing_summary(frm);
             }, __("Routing"));
 
+            // ── CAD File buttons ──────────────────────────────────────────
+            frm.add_custom_button(__("Generate CAD"), function() {
+                frappe.call({
+                    method: "corrugated_estimating.corrugated_estimating.api.generate_cad_file",
+                    args: { estimate_name: frm.doc.name },
+                    freeze: true,
+                    freeze_message: __("Generating DXF file..."),
+                    callback: function(r) {
+                        if (r.message && r.message.status === "success") {
+                            frappe.show_alert({message: __("CAD file generated"), indicator: "green"}, 5);
+                            frm.reload_doc();
+                        } else {
+                            frappe.msgprint(r.message ? r.message.message : "Generation failed");
+                        }
+                    }
+                });
+            }, __("CAD"));
+
+            if (frm.doc.cad_file) {
+                frm.add_custom_button(__("Download DXF"), function() {
+                    window.open(frm.doc.cad_file);
+                }, __("CAD"));
+            }
+
             // ── Estimating tools ──────────────────────────────────────────
             frm.add_custom_button(__("Sensitivity Analysis"), function() {
                 _show_sensitivity_dialog(frm);

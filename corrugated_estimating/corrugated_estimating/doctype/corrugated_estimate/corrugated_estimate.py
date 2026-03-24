@@ -19,6 +19,22 @@ class CorrugatedEstimate(Document):
         self._calc_die_layout()
         self._calc_quantities()
 
+    def on_update(self):
+        """Post-save: generate CAD file if dimensions are available."""
+        self._generate_cad_file()
+
+    def _generate_cad_file(self):
+        """Auto-generate DXF CAD file when blank dims are available."""
+        if not (self.blank_length and self.blank_width and self.name):
+            return
+        try:
+            from corrugated_estimating.corrugated_estimating.cad_generator import (
+                generate_cad_for_estimate,
+            )
+            generate_cad_for_estimate(self.name)
+        except Exception:
+            frappe.log_error("CAD auto-generation failed", frappe.get_traceback())
+
     # ── Blank Size ─────────────────────────────────────────────────────────────
     def _calc_blank_size(self):
         if not (self.length_inside and self.width_inside and self.depth_inside):

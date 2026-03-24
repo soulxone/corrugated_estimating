@@ -1,0 +1,204 @@
+/* Estimating Training Guide Styles */
+
+.guide-container {
+    display: flex;
+    gap: 20px;
+    padding: 15px;
+    min-height: 600px;
+}
+
+.guide-sidebar {
+    width: 220px;
+    min-width: 200px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 15px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.guide-sidebar h4 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: #2490EF;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.guide-nav-item {
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 12px;
+}
+
+.guide-nav-item:hover {
+    background: #f0f4f8;
+}
+
+.guide-nav-item.active {
+    background: #2490EF;
+    color: #fff;
+}
+
+.guide-nav-item.active .text-muted {
+    color: rgba(255,255,255,0.7) !important;
+}
+
+.guide-nav-item strong {
+    font-size: 13px;
+}
+
+.guide-content {
+    flex: 1;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 20px 25px;
+    overflow-y: auto;
+    max-height: 80vh;
+}
+
+.guide-welcome {
+    text-align: center;
+    padding: 60px 20px;
+    color: #888;
+}
+
+.guide-welcome h2 {
+    color: #2490EF;
+    margin-bottom: 10px;
+}
+
+.quick-links {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.guide-header {
+    border-bottom: 2px solid #2490EF;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.guide-header h2 {
+    margin: 0 0 5px;
+    font-size: 20px;
+    color: #333;
+}
+
+.badge-info {
+    background: #2490EF;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+.guide-section {
+    margin-bottom: 20px;
+}
+
+.guide-section h3 {
+    font-size: 14px;
+    color: #2490EF;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+}
+
+.guide-section p,
+.guide-section ul,
+.guide-section ol {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #444;
+}
+
+.formula-box {
+    background: #f5f5ff;
+    border: 1px solid #ddd;
+    border-left: 3px solid #2490EF;
+    padding: 12px 15px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    font-size: 13px;
+}
+
+.formula-box code {
+    background: #e8e8f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #333;
+}
+
+.blank-diagram {
+    text-align: center;
+    margin: 15px 0;
+    padding: 10px;
+    background: #fafafa;
+    border-radius: 4px;
+}
+
+.blank-diagram svg {
+    max-width: 100%;
+    height: auto;
+}
+
+.steps-list {
+    counter-reset: step-counter;
+    list-style: none;
+    padding: 0;
+}
+
+.steps-list li {
+    counter-increment: step-counter;
+    padding: 8px 10px 8px 40px;
+    position: relative;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+}
+
+.steps-list li::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    width: 22px;
+    height: 22px;
+    background: #2490EF;
+    color: #fff;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 22px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.tip {
+    background: #fff8e1;
+    border-left: 3px solid #ffc107;
+    padding: 8px 12px;
+    margin: 10px 0;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #666;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .guide-container {
+        flex-direction: column;
+    }
+    .guide-sidebar {
+        width: 100%;
+        max-height: none;
+    }
+}
