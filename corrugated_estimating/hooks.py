@@ -7,6 +7,9 @@ app_license = "MIT"
 
 app_include_js = "/assets/corrugated_estimating/js/corrugated_estimating.bundle.js"
 
+# ── After Install ────────────────────────────────────────────────────────────
+after_install = "corrugated_estimating.corrugated_estimating.setup.after_install"
+
 # ── DocType JS overrides ───────────────────────────────────────────────────────
 # customer_estimates.js  → injects "Estimate History" tab into ERPNext Customer form
 # Corrugated Estimate DocType JS is loaded automatically from doctype directory
@@ -44,5 +47,10 @@ fixtures = [
     {
         "doctype": "Workspace",
         "filters": [["name", "in", ["Estimating", "Corrugated Estimating"]]]
+    },
+    # ── Machine Master Data ──────────────────────────────────────────────────
+    {
+        "doctype": "Corrugated Machine",
+        "filters": []
     },
 ]

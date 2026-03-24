@@ -252,6 +252,33 @@ def calculate_freight_cost_per_unit(blank_area_sqft, board_lbs_msf=90.0,
     return 0.0
 
 
+# ── Routing-based Converting Cost ───────────────────────────────────────────
+
+def calculate_converting_cost_from_routing(routing_steps, blank_area_sqft, quantity):
+    """
+    Sum converting cost from actual routing steps instead of flat $/MSF rates.
+
+    Each step: (rate_msf / 1000 * gross_sqft) * quantity + setup_cost
+    Returns per-unit converting cost and total setup cost.
+    """
+    if not routing_steps or not quantity:
+        return 0.0, 0.0
+
+    msf_per_unit = float(blank_area_sqft or 0) / 1000.0
+    total_run_cost = 0.0
+    total_setup = 0.0
+
+    for step in routing_steps:
+        rate = float(step.get("rate_msf", 0))
+        setup = float(step.get("setup_cost", 0))
+        total_run_cost += rate * msf_per_unit * int(quantity)
+        total_setup += setup
+
+    total = total_run_cost + total_setup
+    per_unit = total / int(quantity) if int(quantity) > 0 else 0
+    return per_unit, total_setup
+
+
 # ── Full Row Cost (all-in) ───────────────────────────────────────────────────
 
 def calculate_full_row(
@@ -264,7 +291,9 @@ def calculate_full_row(
         board_lbs_msf=90.0,
         plate_charges=0.0, die_charge=0.0, setup_charge_legacy=0.0,
         markup_pct=30.0,
-        settings=None):
+        settings=None,
+        routing_steps=None,
+        die_layout_outs=0):
     """
     Calculate the complete cost breakdown for a single quantity row.
 
@@ -292,9 +321,15 @@ def calculate_full_row(
     )
     mat_total = mat_per_unit * qty
 
-    # Converting
-    conv_per_unit = calculate_converting_cost_per_unit(gross_sqft, die_cut, settings)
-    conv_total    = conv_per_unit * qty
+    # Converting — use routing-based cost if routing steps provided
+    if routing_steps:
+        conv_per_unit, routing_setup_total = calculate_converting_cost_from_routing(
+            routing_steps, blank_area_sqft, qty
+        )
+        conv_total = conv_per_unit * qty
+    else:
+        conv_per_unit = calculate_converting_cost_per_unit(gross_sqft, die_cut, settings)
+        conv_total    = conv_per_unit * qty
 
     # Overhead
     oh_per_unit = calculate_overhead_per_unit(conv_per_unit, overhead_pct)

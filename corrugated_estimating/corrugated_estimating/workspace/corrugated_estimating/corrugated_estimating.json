@@ -37,6 +37,19 @@
             "label": "Settings",
             "link_to": "Corrugated Estimating Settings",
             "type": "DocType"
+        },
+        {
+            "color": "Grey",
+            "doc_view": "List",
+            "label": "Machines",
+            "link_to": "Corrugated Machine",
+            "type": "DocType"
+        },
+        {
+            "color": "Cyan",
+            "label": "Die Layout",
+            "link_to": "die-layout-viewer",
+            "type": "Page"
         }
     ],
     "links": [
@@ -101,6 +114,33 @@
             "label": "Print Methods",
             "link_to": "Corrugated Print Method",
             "link_type": "DocType",
+            "onboard": 0,
+            "type": "Link"
+        },
+        {
+            "hidden": 0,
+            "is_query_report": 0,
+            "label": "Machines",
+            "link_to": "Corrugated Machine",
+            "link_type": "DocType",
+            "onboard": 0,
+            "type": "Link"
+        },
+        {
+            "hidden": 0,
+            "is_query_report": 0,
+            "label": "Production Tools",
+            "link_to": "",
+            "link_type": "DocType",
+            "onboard": 0,
+            "type": "Card Break"
+        },
+        {
+            "hidden": 0,
+            "is_query_report": 0,
+            "label": "Die Layout Viewer",
+            "link_to": "die-layout-viewer",
+            "link_type": "Page",
             "onboard": 0,
             "type": "Link"
         },

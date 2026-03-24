@@ -33,6 +33,16 @@
     "blank_length",
     "blank_width",
     "blank_area_sqft",
+    "routing_section",
+    "recommended_routing",
+    "routing_computed_on",
+    "routing_col",
+    "die_layout_outs",
+    "die_layout_waste_pct",
+    "die_layout_machine",
+    "die_layout_orientation",
+    "routing_detail_section",
+    "routing_steps",
     "print_section",
     "num_colors",
     "print_method",
@@ -229,6 +239,68 @@
       "fieldname": "blank_area_sqft",
       "fieldtype": "Float",
       "label": "Blank Area (sq ft)",
+      "read_only": 1
+    },
+    {
+      "fieldname": "routing_section",
+      "fieldtype": "Section Break",
+      "label": "Machine Routing & Die Layout",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "recommended_routing",
+      "fieldtype": "Small Text",
+      "label": "Recommended Routing",
+      "read_only": 1,
+      "description": "Auto-computed machine routing sequence"
+    },
+    {
+      "fieldname": "routing_computed_on",
+      "fieldtype": "Datetime",
+      "label": "Routing Computed On",
+      "read_only": 1
+    },
+    {
+      "fieldname": "routing_col",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "die_layout_outs",
+      "fieldtype": "Int",
+      "label": "Number of Outs",
+      "read_only": 1,
+      "description": "Blanks per die cut sheet"
+    },
+    {
+      "fieldname": "die_layout_waste_pct",
+      "fieldtype": "Float",
+      "label": "Die Layout Waste %",
+      "read_only": 1
+    },
+    {
+      "fieldname": "die_layout_machine",
+      "fieldtype": "Link",
+      "label": "Die Cut Machine",
+      "options": "Corrugated Machine",
+      "read_only": 1
+    },
+    {
+      "fieldname": "die_layout_orientation",
+      "fieldtype": "Data",
+      "label": "Blank Orientation",
+      "read_only": 1
+    },
+    {
+      "fieldname": "routing_detail_section",
+      "fieldtype": "Section Break",
+      "label": "Routing Steps",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "routing_steps",
+      "fieldtype": "Table",
+      "label": "Routing Steps",
+      "options": "Corrugated Routing Step",
       "read_only": 1
     },
     {

@@ -145,3 +145,99 @@ def get_estimating_settings():
     Used to pre-populate cost model defaults on new estimate creation.
     """
     return get_settings()
+
+
+# ── Machine Routing API ──────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_machine_routing(estimate_name):
+    """
+    Compute routing for an estimate (triggers save which auto-calcs routing).
+    Returns routing summary, steps, and die layout info.
+    """
+    doc = frappe.get_doc("Corrugated Estimate", estimate_name)
+    doc.save()
+    frappe.db.commit()
+
+    return {
+        "routing": doc.recommended_routing,
+        "steps": [
+            {
+                "sequence": s.sequence,
+                "operation": s.operation,
+                "machine": s.machine,
+                "machine_name": s.machine_name,
+                "speed_per_hour": s.speed_per_hour,
+                "rate_msf": s.rate_msf,
+                "setup_time_min": s.setup_time_min,
+                "setup_cost": float(s.setup_cost or 0),
+                "run_cost": float(s.run_cost or 0),
+                "run_time_hours": s.run_time_hours,
+                "total_step_cost": float(s.total_step_cost or 0),
+                "notes": s.step_notes,
+            }
+            for s in (doc.routing_steps or [])
+        ],
+        "die_layout": {
+            "outs": doc.die_layout_outs,
+            "waste_pct": doc.die_layout_waste_pct,
+            "machine": doc.die_layout_machine,
+            "orientation": doc.die_layout_orientation,
+        },
+    }
+
+
+@frappe.whitelist()
+def get_capable_machines_for_estimate(estimate_name):
+    """Return ranked machine list for an estimate's spec."""
+    from corrugated_estimating.corrugated_estimating.routing import get_capable_machines
+
+    doc = frappe.get_doc("Corrugated Estimate", estimate_name)
+    return get_capable_machines(
+        blank_length=float(doc.blank_length or 0),
+        blank_width=float(doc.blank_width or 0),
+        box_style=doc.box_style or "RSC",
+        panel_l=float(doc.length_inside or 0),
+        panel_w=float(doc.width_inside or 0),
+        panel_d=float(doc.depth_inside or 0),
+        num_colors=int(doc.num_colors or 0),
+        needs_glue=True,
+        needs_die_cut=bool(doc.die_cut_special),
+        wall_type=doc.wall_type or "Single Wall",
+    )
+
+
+# ── Die Layout API ───────────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_die_layout(estimate_name, machine_id=None, sheet_length=None, sheet_width=None):
+    """Calculate die layout for an estimate, optionally for a specific machine."""
+    from corrugated_estimating.corrugated_estimating.layout import (
+        calculate_die_layout,
+        calculate_layout_for_all_machines,
+    )
+
+    doc = frappe.get_doc("Corrugated Estimate", estimate_name)
+    bl = float(doc.blank_length or 0)
+    bw = float(doc.blank_width or 0)
+
+    if not bl or not bw:
+        return {"error": "Blank dimensions not calculated yet"}
+
+    if machine_id:
+        return calculate_die_layout(
+            blank_length=bl,
+            blank_width=bw,
+            machine_id=machine_id,
+            sheet_length=float(sheet_length) if sheet_length else None,
+            sheet_width=float(sheet_width) if sheet_width else None,
+        )
+
+    return calculate_layout_for_all_machines(bl, bw)
+
+
+@frappe.whitelist()
+def get_routing_summary(estimate_name):
+    """Return production routing summary with time/cost breakdown."""
+    doc = frappe.get_doc("Corrugated Estimate", estimate_name)
+    return doc.get_routing_summary()

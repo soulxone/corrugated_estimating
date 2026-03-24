@@ -1,0 +1,137 @@
+/* Die Layout Viewer Page Styles */
+
+.die-layout-container {
+    padding: 15px;
+}
+
+.die-layout-controls {
+    margin-bottom: 15px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e5e5e5;
+}
+
+.control-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.control-group {
+    min-width: 140px;
+}
+
+.control-group label {
+    display: block;
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.die-layout-body {
+    display: flex;
+    gap: 15px;
+}
+
+.svg-container {
+    flex: 1;
+    min-height: 400px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+}
+
+.svg-container svg {
+    max-width: 100%;
+    height: auto;
+}
+
+.placeholder-text {
+    color: #aaa;
+    font-size: 14px;
+    text-align: center;
+    padding: 40px;
+}
+
+.info-panel {
+    width: 280px;
+    min-width: 250px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 12px;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.info-panel h4 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: #2490EF;
+    border-bottom: 2px solid #2490EF;
+    padding-bottom: 6px;
+}
+
+.info-panel h5 {
+    margin: 6px 0;
+    font-size: 12px;
+    color: #333;
+}
+
+.info-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+
+.info-table th {
+    background: #2490EF;
+    color: #fff;
+    padding: 4px 6px;
+    text-align: left;
+    font-size: 10px;
+}
+
+.info-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid #eee;
+}
+
+.info-table .info-label {
+    color: #888;
+    font-size: 10px;
+    white-space: nowrap;
+    width: 40%;
+}
+
+.info-table .info-value {
+    font-weight: 500;
+    color: #333;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .die-layout-body {
+        flex-direction: column;
+    }
+    .info-panel {
+        width: 100%;
+    }
+    .control-row {
+        flex-direction: column;
+    }
+}
+
+/* Print */
+@media print {
+    .die-layout-controls { display: none; }
+    .info-panel { page-break-before: always; }
+}

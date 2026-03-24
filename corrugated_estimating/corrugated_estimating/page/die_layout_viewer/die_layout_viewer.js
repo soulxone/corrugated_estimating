@@ -1,0 +1,320 @@
+/* =============================================================================
+   Die Layout Viewer – Interactive SVG nesting visualization
+   =============================================================================
+   Shows how blanks are nested onto a die cut sheet, with:
+   - Trim zone (hatched border)
+   - Gripper edge (dark strip at leading edge)
+   - Blank rectangles (colored, with dimension text)
+   - Waste areas (highlighted)
+   - Info panel: outs, waste %, utilization, sheet dims
+   ============================================================================= */
+
+frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
+    var page = frappe.ui.make_app_page({
+        parent: wrapper,
+        title: "Die Cut Layout Viewer",
+        single_column: true,
+    });
+
+    page.main.html(`
+        <div class="die-layout-container">
+            <div class="die-layout-controls">
+                <div class="control-row">
+                    <div class="control-group">
+                        <label>Estimate</label>
+                        <div id="estimate-field"></div>
+                    </div>
+                    <div class="control-group">
+                        <label>Machine</label>
+                        <div id="machine-field"></div>
+                    </div>
+                    <div class="control-group">
+                        <label>Sheet Length (in)</label>
+                        <div id="sheet-length-field"></div>
+                    </div>
+                    <div class="control-group">
+                        <label>Sheet Width (in)</label>
+                        <div id="sheet-width-field"></div>
+                    </div>
+                    <div class="control-group">
+                        <button class="btn btn-primary btn-sm" id="calc-layout-btn">Calculate Layout</button>
+                        <button class="btn btn-default btn-sm" id="export-svg-btn" style="margin-left:4px;">Export PNG</button>
+                    </div>
+                </div>
+            </div>
+            <div class="die-layout-body">
+                <div class="svg-container" id="svg-container">
+                    <div class="placeholder-text">Select an estimate and click "Calculate Layout" to view the die nesting.</div>
+                </div>
+                <div class="info-panel" id="info-panel">
+                    <h4>Layout Info</h4>
+                    <div id="info-content">No layout computed yet.</div>
+                </div>
+            </div>
+        </div>
+    `);
+
+    // ── Build controls ────────────────────────────────────────────────────
+    var estimateField = frappe.ui.form.make_control({
+        parent: page.main.find("#estimate-field"),
+        df: { fieldtype: "Link", fieldname: "estimate", options: "Corrugated Estimate", placeholder: "Select Estimate" },
+        render_input: true,
+    });
+
+    var machineField = frappe.ui.form.make_control({
+        parent: page.main.find("#machine-field"),
+        df: { fieldtype: "Link", fieldname: "machine", options: "Corrugated Machine",
+              placeholder: "Auto or select", get_query: function() { return { filters: { can_die_cut: 1, enabled: 1 } }; } },
+        render_input: true,
+    });
+
+    var sheetLengthField = frappe.ui.form.make_control({
+        parent: page.main.find("#sheet-length-field"),
+        df: { fieldtype: "Float", fieldname: "sheet_length", placeholder: "Auto" },
+        render_input: true,
+    });
+
+    var sheetWidthField = frappe.ui.form.make_control({
+        parent: page.main.find("#sheet-width-field"),
+        df: { fieldtype: "Float", fieldname: "sheet_width", placeholder: "Auto" },
+        render_input: true,
+    });
+
+    // ── Auto-populate from URL params ─────────────────────────────────────
+    var routeParams = frappe.utils.get_url_params();
+    if (routeParams.estimate) {
+        estimateField.set_value(routeParams.estimate);
+    }
+
+    // ── Calculate button ──────────────────────────────────────────────────
+    page.main.find("#calc-layout-btn").on("click", function () {
+        var est = estimateField.get_value();
+        if (!est) {
+            frappe.msgprint(__("Please select an estimate."));
+            return;
+        }
+
+        frappe.call({
+            method: "corrugated_estimating.corrugated_estimating.api.get_die_layout",
+            args: {
+                estimate_name: est,
+                machine_id: machineField.get_value() || null,
+                sheet_length: sheetLengthField.get_value() || null,
+                sheet_width: sheetWidthField.get_value() || null,
+            },
+            freeze: true,
+            freeze_message: __("Calculating die layout..."),
+            callback: function (r) {
+                if (!r.message) return;
+
+                var data = r.message;
+                // If array returned (all machines), show best
+                if (Array.isArray(data)) {
+                    if (data.length === 0) {
+                        page.main.find("#svg-container").html(
+                            '<div class="placeholder-text">No die cut machines can fit this blank size.</div>'
+                        );
+                        page.main.find("#info-content").html("No layout possible.");
+                        return;
+                    }
+                    // Render best layout, show comparison in info panel
+                    _renderLayout(page, data[0]);
+                    _renderComparisonInfo(page, data);
+                } else if (data.error) {
+                    page.main.find("#svg-container").html(
+                        '<div class="placeholder-text" style="color:red;">' + data.error + '</div>'
+                    );
+                } else {
+                    _renderLayout(page, data);
+                    _renderSingleInfo(page, data);
+                }
+            }
+        });
+    });
+
+    // ── Export PNG ─────────────────────────────────────────────────────────
+    page.main.find("#export-svg-btn").on("click", function () {
+        var svgEl = page.main.find("#svg-container svg")[0];
+        if (!svgEl) {
+            frappe.msgprint(__("No layout to export."));
+            return;
+        }
+        _exportSvgToPng(svgEl);
+    });
+};
+
+
+// ── SVG Rendering ───────────────────────────────────────────────────────────
+
+function _renderLayout(page, layout) {
+    var container = page.main.find("#svg-container");
+    container.empty();
+
+    if (!layout || !layout.layout_positions || layout.layout_positions.length === 0) {
+        container.html('<div class="placeholder-text">No blanks fit in this layout.</div>');
+        return;
+    }
+
+    // Scale: fit SVG to container width (max ~900px)
+    var containerWidth = Math.min(container.width() || 900, 900);
+    var scale = containerWidth / layout.sheet_length;
+    var svgW = layout.sheet_length * scale;
+    var svgH = layout.sheet_width * scale;
+
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' + svgH + '" viewBox="0 0 ' + layout.sheet_length + ' ' + layout.sheet_width + '">';
+
+    // Defs for patterns
+    svg += '<defs>';
+    svg += '<pattern id="trim-hatch" patternUnits="userSpaceOnUse" width="4" height="4">';
+    svg += '<path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2" stroke="#cc0000" stroke-width="0.3" opacity="0.4"/>';
+    svg += '</pattern>';
+    svg += '<pattern id="waste-hatch" patternUnits="userSpaceOnUse" width="6" height="6">';
+    svg += '<path d="M-1,1 l2,-2 M0,6 l6,-6 M5,7 l2,-2" stroke="#ff6600" stroke-width="0.2" opacity="0.2"/>';
+    svg += '</pattern>';
+    svg += '</defs>';
+
+    // Sheet boundary
+    svg += '<rect x="0" y="0" width="' + layout.sheet_length + '" height="' + layout.sheet_width + '" fill="#f5f5f5" stroke="#333" stroke-width="0.5"/>';
+
+    // Trim zone (hatched border)
+    var trim = layout.trim_allowance;
+    svg += '<rect x="0" y="0" width="' + layout.sheet_length + '" height="' + trim + '" fill="url(#trim-hatch)"/>';
+    svg += '<rect x="0" y="' + (layout.sheet_width - trim) + '" width="' + layout.sheet_length + '" height="' + trim + '" fill="url(#trim-hatch)"/>';
+    svg += '<rect x="0" y="0" width="' + trim + '" height="' + layout.sheet_width + '" fill="url(#trim-hatch)"/>';
+    svg += '<rect x="' + (layout.sheet_length - trim) + '" y="0" width="' + trim + '" height="' + layout.sheet_width + '" fill="url(#trim-hatch)"/>';
+
+    // Gripper edge
+    var gripper = layout.gripper_edge;
+    if (gripper > 0) {
+        svg += '<rect x="' + trim + '" y="0" width="' + gripper + '" height="' + layout.sheet_width + '" fill="rgba(100,100,100,0.15)" stroke="#666" stroke-width="0.2"/>';
+        var fontSize = Math.max(1.5, layout.sheet_width * 0.02);
+        svg += '<text x="' + (trim + gripper / 2) + '" y="' + (layout.sheet_width / 2) + '" text-anchor="middle" font-size="' + fontSize + '" fill="#666" transform="rotate(-90,' + (trim + gripper / 2) + ',' + (layout.sheet_width / 2) + ')">GRIPPER</text>';
+    }
+
+    // Blank rectangles
+    var colors = ["#2490EF", "#28a745", "#6f42c1", "#fd7e14", "#e83e8c", "#20c997"];
+    layout.layout_positions.forEach(function (pos, i) {
+        var color = colors[i % colors.length];
+        svg += '<rect x="' + pos.x + '" y="' + pos.y + '" width="' + pos.width + '" height="' + pos.height + '" ';
+        svg += 'fill="' + color + '" fill-opacity="0.25" stroke="' + color + '" stroke-width="0.5"/>';
+
+        // Dimension text inside blank
+        var txtSize = Math.max(1.5, Math.min(pos.width, pos.height) * 0.12);
+        var cx = pos.x + pos.width / 2;
+        var cy = pos.y + pos.height / 2;
+        svg += '<text x="' + cx + '" y="' + cy + '" text-anchor="middle" dominant-baseline="middle" font-size="' + txtSize + '" fill="#333">';
+        svg += pos.width.toFixed(1) + '" x ' + pos.height.toFixed(1) + '"';
+        svg += '</text>';
+
+        // Out number
+        svg += '<text x="' + (pos.x + 1) + '" y="' + (pos.y + txtSize + 1) + '" font-size="' + (txtSize * 0.8) + '" fill="' + color + '" font-weight="bold">#' + (i + 1) + '</text>';
+    });
+
+    // Sheet dimension callouts
+    var dimFont = Math.max(2, layout.sheet_width * 0.03);
+    // Bottom: sheet length
+    svg += '<text x="' + (layout.sheet_length / 2) + '" y="' + (layout.sheet_width - trim / 3) + '" text-anchor="middle" font-size="' + dimFont + '" fill="#c00">' + layout.sheet_length.toFixed(1) + '"</text>';
+    // Right: sheet width
+    svg += '<text x="' + (layout.sheet_length - trim / 3) + '" y="' + (layout.sheet_width / 2) + '" text-anchor="middle" font-size="' + dimFont + '" fill="#c00" transform="rotate(-90,' + (layout.sheet_length - trim / 3) + ',' + (layout.sheet_width / 2) + ')">' + layout.sheet_width.toFixed(1) + '"</text>';
+
+    svg += '</svg>';
+    container.html(svg);
+}
+
+
+// ── Info Panel Rendering ────────────────────────────────────────────────────
+
+function _renderSingleInfo(page, layout) {
+    var html = '<table class="info-table">';
+    html += _infoRow("Machine", layout.machine_name || layout.machine_id || "Manual");
+    html += _infoRow("Total Outs", '<strong>' + layout.total_outs + '</strong>');
+    html += _infoRow("Layout", layout.outs_across + " across x " + layout.outs_down + " down");
+    html += _infoRow("Orientation", layout.blank_orientation || "0deg");
+    html += _infoRow("Blank Size", layout.blank_length.toFixed(2) + '" x ' + layout.blank_width.toFixed(2) + '"');
+    html += _infoRow("Sheet Size", layout.sheet_length.toFixed(1) + '" x ' + layout.sheet_width.toFixed(1) + '"');
+    html += _infoRow("Usable Area", layout.usable_length.toFixed(1) + '" x ' + layout.usable_width.toFixed(1) + '"');
+    html += _infoRow("Trim", layout.trim_allowance + '" per side');
+    html += _infoRow("Gripper", layout.gripper_edge + '"');
+    html += _infoRow("Gutter", layout.gutter + '"');
+    html += _infoRow("Waste %", '<span style="color:' + (layout.waste_pct > 25 ? 'red' : layout.waste_pct > 15 ? 'orange' : 'green') + ';font-weight:bold;">' + layout.waste_pct.toFixed(1) + '%</span>');
+    html += _infoRow("Utilization", '<span style="font-weight:bold;">' + layout.utilization_pct.toFixed(1) + '%</span>');
+    html += _infoRow("Blank Area", layout.total_blank_area_sqft.toFixed(2) + ' sq ft');
+    html += _infoRow("Sheet Area", layout.sheet_area_sqft.toFixed(2) + ' sq ft');
+    html += '</table>';
+
+    page.main.find("#info-content").html(html);
+}
+
+
+function _renderComparisonInfo(page, layouts) {
+    var html = '<p style="font-size:11px;color:#888;margin-bottom:8px;">Showing best layout. All machines:</p>';
+    html += '<table class="info-table">';
+    html += '<tr><th>Machine</th><th>Outs</th><th>Waste</th><th>Layout</th></tr>';
+
+    layouts.forEach(function (l, i) {
+        var cls = i === 0 ? ' style="background:#e6ffe6;font-weight:bold;"' : '';
+        html += '<tr' + cls + '>';
+        html += '<td>' + (l.machine_name || l.machine_id) + '</td>';
+        html += '<td>' + l.total_outs + '</td>';
+        html += '<td>' + l.waste_pct.toFixed(1) + '%</td>';
+        html += '<td>' + l.outs_across + 'x' + l.outs_down + '</td>';
+        html += '</tr>';
+    });
+
+    html += '</table>';
+
+    // Also show details for best layout
+    html += '<hr style="margin:8px 0;">';
+    html += '<h5>Best Layout Details</h5>';
+    var best = layouts[0];
+    html += '<table class="info-table">';
+    html += _infoRow("Machine", best.machine_name || best.machine_id);
+    html += _infoRow("Outs", best.total_outs + ' (' + best.outs_across + ' x ' + best.outs_down + ')');
+    html += _infoRow("Orientation", best.blank_orientation);
+    html += _infoRow("Sheet", best.sheet_length.toFixed(1) + '" x ' + best.sheet_width.toFixed(1) + '"');
+    html += _infoRow("Waste", best.waste_pct.toFixed(1) + '%');
+    html += _infoRow("Utilization", best.utilization_pct.toFixed(1) + '%');
+    html += '</table>';
+
+    page.main.find("#info-content").html(html);
+}
+
+
+function _infoRow(label, value) {
+    return '<tr><td class="info-label">' + label + '</td><td class="info-value">' + value + '</td></tr>';
+}
+
+
+// ── Export SVG to PNG ────────────────────────────────────────────────────────
+
+function _exportSvgToPng(svgElement) {
+    var serializer = new XMLSerializer();
+    var svgStr = serializer.serializeToString(svgElement);
+    var canvas = document.createElement("canvas");
+    var svgW = svgElement.width.baseVal.value;
+    var svgH = svgElement.height.baseVal.value;
+
+    // 2x resolution for print
+    canvas.width = svgW * 2;
+    canvas.height = svgH * 2;
+    var ctx = canvas.getContext("2d");
+    ctx.scale(2, 2);
+
+    var img = new Image();
+    var blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+
+    img.onload = function () {
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, svgW, svgH);
+        ctx.drawImage(img, 0, 0, svgW, svgH);
+        URL.revokeObjectURL(url);
+
+        var link = document.createElement("a");
+        link.download = "die-layout-" + new Date().toISOString().slice(0, 10) + ".png";
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    };
+
+    img.src = url;
+}

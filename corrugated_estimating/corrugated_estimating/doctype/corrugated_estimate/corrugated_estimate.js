@@ -50,6 +50,40 @@ frappe.ui.form.on("Corrugated Estimate", {
     // ── Custom buttons ─────────────────────────────────────────────────────
     refresh: function(frm) {
         if (!frm.is_new()) {
+            // ── Routing & Layout buttons ──────────────────────────────────
+            frm.add_custom_button(__("Compute Routing"), function() {
+                frappe.call({
+                    method: "corrugated_estimating.corrugated_estimating.api.get_machine_routing",
+                    args: { estimate_name: frm.doc.name },
+                    freeze: true,
+                    freeze_message: __("Computing machine routing..."),
+                    callback: function(r) {
+                        frm.reload_doc();
+                        if (r.message) {
+                            frappe.show_alert({
+                                message: __("Routing computed: {0} step(s)", [r.message.steps.length]),
+                                indicator: "green"
+                            }, 5);
+                        }
+                    }
+                });
+            }, __("Routing"));
+
+            if (frm.doc.die_layout_outs) {
+                frm.add_custom_button(__("View Die Layout"), function() {
+                    frappe.set_route("die-layout-viewer", { estimate: frm.doc.name });
+                }, __("Routing"));
+            }
+
+            frm.add_custom_button(__("Capable Machines"), function() {
+                _show_capable_machines(frm);
+            }, __("Routing"));
+
+            frm.add_custom_button(__("Routing Summary"), function() {
+                _show_routing_summary(frm);
+            }, __("Routing"));
+
+            // ── Estimating tools ──────────────────────────────────────────
             frm.add_custom_button(__("Sensitivity Analysis"), function() {
                 _show_sensitivity_dialog(frm);
             }, __("Estimating"));
@@ -482,6 +516,132 @@ function _convert_to_sales_order(frm) {
         );
     }
 }
+
+// ── Capable Machines Dialog ──────────────────────────────────────────────────
+
+function _show_capable_machines(frm) {
+    if (!frm.doc.blank_length || !frm.doc.blank_width) {
+        frappe.msgprint(__("Please enter box dimensions first."));
+        return;
+    }
+
+    frappe.call({
+        method: "corrugated_estimating.corrugated_estimating.api.get_capable_machines_for_estimate",
+        args: { estimate_name: frm.doc.name },
+        freeze: true,
+        callback: function(r) {
+            if (!r.message) return;
+            var machines = r.message;
+
+            var html = "<style>";
+            html += ".mach-table { border-collapse: collapse; width: 100%; font-size: 12px; }";
+            html += ".mach-table th, .mach-table td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }";
+            html += ".mach-table th { background: #2490EF; color: #fff; }";
+            html += ".qualified { background: #e6ffe6; }";
+            html += ".disqualified { background: #fff0f0; }";
+            html += "</style>";
+            html += "<table class='mach-table'><thead><tr>";
+            html += "<th>Machine</th><th>Name</th><th>Dept</th><th>Speed/Hr</th><th>Rate $/MSF</th><th>Status</th>";
+            html += "</tr></thead><tbody>";
+
+            machines.forEach(function(m) {
+                var cls = m.qualified ? "qualified" : "disqualified";
+                var status = m.qualified ? "OK" : m.disqualify_reasons.join("; ");
+                html += "<tr class='" + cls + "'>";
+                html += "<td><strong>" + m.machine_id + "</strong></td>";
+                html += "<td>" + m.machine_name + "</td>";
+                html += "<td>" + m.department + "</td>";
+                html += "<td>" + (m.speed_per_hour ? frappe.format(m.speed_per_hour, {fieldtype:"Int"}) : "-") + "</td>";
+                html += "<td>$" + _f(m.rate_msf) + "</td>";
+                html += "<td>" + status + "</td>";
+                html += "</tr>";
+            });
+
+            html += "</tbody></table>";
+
+            frappe.msgprint({
+                title: __("Capable Machines — Blank {0}\" x {1}\"",
+                          [_f(frm.doc.blank_length, 1), _f(frm.doc.blank_width, 1)]),
+                indicator: "blue",
+                message: html,
+                wide: true,
+            });
+        }
+    });
+}
+
+
+// ── Routing Summary Dialog ──────────────────────────────────────────────────
+
+function _show_routing_summary(frm) {
+    if (!frm.doc.routing_steps || !frm.doc.routing_steps.length) {
+        frappe.msgprint(__("No routing computed yet. Click 'Compute Routing' first."));
+        return;
+    }
+
+    frappe.call({
+        method: "corrugated_estimating.corrugated_estimating.api.get_routing_summary",
+        args: { estimate_name: frm.doc.name },
+        freeze: true,
+        callback: function(r) {
+            if (!r.message) return;
+            var data = r.message;
+
+            var html = "<style>";
+            html += ".route-table { border-collapse: collapse; width: 100%; font-size: 12px; margin-bottom: 12px; }";
+            html += ".route-table th, .route-table td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }";
+            html += ".route-table th { background: #2490EF; color: #fff; }";
+            html += ".summary-bar { display: flex; gap: 20px; margin-bottom: 12px; padding: 10px; background: #f0f4f8; border-radius: 4px; }";
+            html += ".summary-item { text-align: center; } .summary-item .label { font-size: 10px; color: #888; } .summary-item .value { font-size: 16px; font-weight: bold; }";
+            html += "</style>";
+
+            // Summary bar
+            html += "<div class='summary-bar'>";
+            html += "<div class='summary-item'><div class='label'>Total Setup</div><div class='value'>" + _f(data.total_setup_minutes, 0) + " min</div></div>";
+            html += "<div class='summary-item'><div class='label'>Total Run</div><div class='value'>" + _f(data.total_run_hours) + " hrs</div></div>";
+            html += "<div class='summary-item'><div class='label'>Total Cost</div><div class='value'>$" + _f(data.total_machine_cost) + "</div></div>";
+            html += "<div class='summary-item'><div class='label'>Bottleneck</div><div class='value'>" + (data.bottleneck_machine || "-") + "</div></div>";
+            html += "</div>";
+
+            // Steps table
+            html += "<table class='route-table'><thead><tr>";
+            html += "<th>Seq</th><th>Operation</th><th>Machine</th><th>Setup (min)</th><th>Run (hrs)</th><th>Total (hrs)</th><th>Cost ($)</th>";
+            html += "</tr></thead><tbody>";
+
+            (data.steps || []).forEach(function(s) {
+                html += "<tr>";
+                html += "<td>" + s.sequence + "</td>";
+                html += "<td>" + s.operation + "</td>";
+                html += "<td>" + (s.machine_name || s.machine || "-") + "</td>";
+                html += "<td>" + _f(s.setup_min, 0) + "</td>";
+                html += "<td>" + _f(s.run_hours) + "</td>";
+                html += "<td>" + _f(s.total_hours) + "</td>";
+                html += "<td>$" + _f(s.cost) + "</td>";
+                html += "</tr>";
+            });
+
+            html += "</tbody></table>";
+
+            // Die layout info
+            if (frm.doc.die_layout_outs) {
+                html += "<div style='margin-top:8px;padding:8px;background:#f5f5ff;border-radius:4px;font-size:12px;'>";
+                html += "<strong>Die Layout:</strong> " + frm.doc.die_layout_outs + " outs";
+                html += " | Waste: " + _f(frm.doc.die_layout_waste_pct, 1) + "%";
+                html += " | Machine: " + (frm.doc.die_layout_machine || "-");
+                html += " | Orientation: " + (frm.doc.die_layout_orientation || "-");
+                html += "</div>";
+            }
+
+            frappe.msgprint({
+                title: __("Production Routing Summary"),
+                indicator: "blue",
+                message: html,
+                wide: true,
+            });
+        }
+    });
+}
+
 
 function _check_board_stock(frm) {
     // Check if the board grade item is in stock via Lexington Inventory Monitor API

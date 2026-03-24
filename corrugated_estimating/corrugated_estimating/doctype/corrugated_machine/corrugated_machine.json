@@ -1,0 +1,396 @@
+{
+  "actions": [],
+  "creation": "2026-03-24 00:00:00.000000",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "machine_id", "machine_name", "department", "enabled",
+    "column_break_speed", "speed_value", "speed_unit", "tops", "feed_position",
+    "blank_constraints_section",
+    "blank_min_length", "blank_min_width", "blank_max_length", "blank_max_width",
+    "column_break_panel",
+    "panel_min_length", "panel_max_length", "panel_min_width", "panel_max_width",
+    "panel_min_depth", "panel_max_depth",
+    "capabilities_section",
+    "can_print", "print_stations", "max_print_length", "max_print_width",
+    "column_break_cap2",
+    "can_score_slot", "can_die_cut", "die_cut_position",
+    "can_glue", "glue_type", "glue_tab_inches",
+    "column_break_cap3",
+    "can_stitch", "can_fold", "skip_feed", "hand_feed", "feed_edge",
+    "die_cut_section",
+    "cutting_surface_width", "trim_allowance",
+    "column_break_dc2",
+    "max_unfolded_width", "fold_clearance",
+    "scoring_section",
+    "max_scores", "max_slit_scores", "max_knives",
+    "column_break_sc2",
+    "min_score_distance", "head_width",
+    "cost_section",
+    "rate_msf", "setup_time_min", "setup_cost",
+    "notes_section",
+    "special_notes",
+    "styles_section",
+    "supported_styles"
+  ],
+  "fields": [
+    {
+      "fieldname": "machine_id",
+      "fieldtype": "Data",
+      "label": "Machine ID",
+      "reqd": 1,
+      "unique": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1
+    },
+    {
+      "fieldname": "machine_name",
+      "fieldtype": "Data",
+      "label": "Machine Name",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "department",
+      "fieldtype": "Select",
+      "label": "Department",
+      "options": "\nPrint\nScore/Slot\nDie Cut\nFold/Glue\nStitch\nAuto Box\nSpecialty",
+      "in_list_view": 1,
+      "in_standard_filter": 1
+    },
+    {
+      "fieldname": "enabled",
+      "fieldtype": "Check",
+      "label": "Enabled",
+      "default": "1",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "column_break_speed",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "speed_value",
+      "fieldtype": "Float",
+      "label": "Speed",
+      "description": "Units processed per period"
+    },
+    {
+      "fieldname": "speed_unit",
+      "fieldtype": "Select",
+      "label": "Speed Unit",
+      "options": "\nper hour\nper minute",
+      "default": "per hour"
+    },
+    {
+      "fieldname": "tops",
+      "fieldtype": "Int",
+      "label": "# Tops (Feeders)",
+      "description": "Number of feed stations"
+    },
+    {
+      "fieldname": "feed_position",
+      "fieldtype": "Select",
+      "label": "Feed Position",
+      "options": "\nTop\nBottom"
+    },
+    {
+      "fieldname": "blank_constraints_section",
+      "fieldtype": "Section Break",
+      "label": "Blank Size Constraints (inches)"
+    },
+    {
+      "fieldname": "blank_min_length",
+      "fieldtype": "Float",
+      "label": "Blank Min Length"
+    },
+    {
+      "fieldname": "blank_min_width",
+      "fieldtype": "Float",
+      "label": "Blank Min Width"
+    },
+    {
+      "fieldname": "blank_max_length",
+      "fieldtype": "Float",
+      "label": "Blank Max Length"
+    },
+    {
+      "fieldname": "blank_max_width",
+      "fieldtype": "Float",
+      "label": "Blank Max Width"
+    },
+    {
+      "fieldname": "column_break_panel",
+      "fieldtype": "Column Break",
+      "label": "Panel Size Constraints (inches)"
+    },
+    {
+      "fieldname": "panel_min_length",
+      "fieldtype": "Float",
+      "label": "Panel Min Length"
+    },
+    {
+      "fieldname": "panel_max_length",
+      "fieldtype": "Float",
+      "label": "Panel Max Length"
+    },
+    {
+      "fieldname": "panel_min_width",
+      "fieldtype": "Float",
+      "label": "Panel Min Width"
+    },
+    {
+      "fieldname": "panel_max_width",
+      "fieldtype": "Float",
+      "label": "Panel Max Width"
+    },
+    {
+      "fieldname": "panel_min_depth",
+      "fieldtype": "Float",
+      "label": "Panel Min Depth"
+    },
+    {
+      "fieldname": "panel_max_depth",
+      "fieldtype": "Float",
+      "label": "Panel Max Depth"
+    },
+    {
+      "fieldname": "capabilities_section",
+      "fieldtype": "Section Break",
+      "label": "Machine Capabilities"
+    },
+    {
+      "fieldname": "can_print",
+      "fieldtype": "Check",
+      "label": "Can Print"
+    },
+    {
+      "fieldname": "print_stations",
+      "fieldtype": "Int",
+      "label": "Print Stations"
+    },
+    {
+      "fieldname": "max_print_length",
+      "fieldtype": "Float",
+      "label": "Max Print Length (in)"
+    },
+    {
+      "fieldname": "max_print_width",
+      "fieldtype": "Float",
+      "label": "Max Print Width (in)"
+    },
+    {
+      "fieldname": "column_break_cap2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "can_score_slot",
+      "fieldtype": "Check",
+      "label": "Can Score / Slot"
+    },
+    {
+      "fieldname": "can_die_cut",
+      "fieldtype": "Check",
+      "label": "Can Die Cut"
+    },
+    {
+      "fieldname": "die_cut_position",
+      "fieldtype": "Select",
+      "label": "Die Cut Position",
+      "options": "\nTop\nBottom",
+      "depends_on": "eval:doc.can_die_cut"
+    },
+    {
+      "fieldname": "can_glue",
+      "fieldtype": "Check",
+      "label": "Can Glue"
+    },
+    {
+      "fieldname": "glue_type",
+      "fieldtype": "Select",
+      "label": "Glue Type",
+      "options": "\nInside\nOutside\nInside/Outside",
+      "depends_on": "eval:doc.can_glue"
+    },
+    {
+      "fieldname": "glue_tab_inches",
+      "fieldtype": "Float",
+      "label": "Max Glue Tab (in)",
+      "depends_on": "eval:doc.can_glue"
+    },
+    {
+      "fieldname": "column_break_cap3",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "can_stitch",
+      "fieldtype": "Check",
+      "label": "Can Stitch"
+    },
+    {
+      "fieldname": "can_fold",
+      "fieldtype": "Check",
+      "label": "Can Fold"
+    },
+    {
+      "fieldname": "skip_feed",
+      "fieldtype": "Check",
+      "label": "Skip Feed"
+    },
+    {
+      "fieldname": "hand_feed",
+      "fieldtype": "Check",
+      "label": "Hand Feed"
+    },
+    {
+      "fieldname": "feed_edge",
+      "fieldtype": "Select",
+      "label": "Feed Edge",
+      "options": "\nLE (Leading Edge)\nSlate Feed"
+    },
+    {
+      "fieldname": "die_cut_section",
+      "fieldtype": "Section Break",
+      "label": "Die Cut / Folder Specifics",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "cutting_surface_width",
+      "fieldtype": "Float",
+      "label": "Cutting Surface Width (in)",
+      "description": "Usable cutting width for die cutters"
+    },
+    {
+      "fieldname": "trim_allowance",
+      "fieldtype": "Float",
+      "label": "Trim Allowance (in)",
+      "default": "0.5",
+      "description": "Trim per side"
+    },
+    {
+      "fieldname": "column_break_dc2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "max_unfolded_width",
+      "fieldtype": "Float",
+      "label": "Max Unfolded Width (in)",
+      "description": "For folder-gluers"
+    },
+    {
+      "fieldname": "fold_clearance",
+      "fieldtype": "Float",
+      "label": "Min Fold Clearance (in)",
+      "description": "Minimum width needed to fold"
+    },
+    {
+      "fieldname": "scoring_section",
+      "fieldtype": "Section Break",
+      "label": "Scoring Specifics",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "max_scores",
+      "fieldtype": "Int",
+      "label": "Max Scores"
+    },
+    {
+      "fieldname": "max_slit_scores",
+      "fieldtype": "Int",
+      "label": "Max Slit Scores"
+    },
+    {
+      "fieldname": "max_knives",
+      "fieldtype": "Int",
+      "label": "Max Knives"
+    },
+    {
+      "fieldname": "column_break_sc2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "min_score_distance",
+      "fieldtype": "Float",
+      "label": "Min Distance Between Scores (in)"
+    },
+    {
+      "fieldname": "head_width",
+      "fieldtype": "Float",
+      "label": "Head Width (in)"
+    },
+    {
+      "fieldname": "cost_section",
+      "fieldtype": "Section Break",
+      "label": "Cost & Timing"
+    },
+    {
+      "fieldname": "rate_msf",
+      "fieldtype": "Float",
+      "label": "Rate ($/MSF)",
+      "description": "Machine cost rate per thousand square feet"
+    },
+    {
+      "fieldname": "setup_time_min",
+      "fieldtype": "Float",
+      "label": "Setup Time (minutes)"
+    },
+    {
+      "fieldname": "setup_cost",
+      "fieldtype": "Currency",
+      "label": "Setup Cost ($)"
+    },
+    {
+      "fieldname": "notes_section",
+      "fieldtype": "Section Break",
+      "label": "Notes",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "special_notes",
+      "fieldtype": "Small Text",
+      "label": "Special Notes"
+    },
+    {
+      "fieldname": "styles_section",
+      "fieldtype": "Section Break",
+      "label": "Supported Box Styles",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "supported_styles",
+      "fieldtype": "Table MultiSelect",
+      "label": "Supported Styles",
+      "options": "Corrugated Machine Style Link"
+    }
+  ],
+  "links": [],
+  "modified": "2026-03-24 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Corrugated Estimating",
+  "name": "Corrugated Machine",
+  "naming_rule": "By fieldname",
+  "autoname": "field:machine_id",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    },
+    {
+      "read": 1,
+      "role": "Sales User"
+    }
+  ],
+  "sort_field": "machine_id",
+  "sort_order": "ASC",
+  "track_changes": 1
+}
