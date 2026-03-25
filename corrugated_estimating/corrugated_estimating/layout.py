@@ -18,6 +18,7 @@ def calculate_die_layout(
     trim_allowance=0.5,
     gripper_edge=1.0,
     gutter=0.75,
+    tight_fit=False,
 ):
     """
     Calculate optimal nesting of blanks on a die cutter sheet.
@@ -34,6 +35,8 @@ def calculate_die_layout(
         trim_allowance: trim per side in inches (default 0.5)
         gripper_edge: leading edge grip in inches (default 1.0)
         gutter: space between blanks in inches (default 0.75)
+        tight_fit: if True, shrink sheet to fit blanks with only 1" total
+                   scrap outside needed cuts (0.5" trim per side)
 
     Returns dict with layout data including positions for SVG rendering.
     """
@@ -96,6 +99,23 @@ def calculate_die_layout(
             f"Blank {blank_length}x{blank_width} does not fit in usable area "
             f"{usable_length:.1f}x{usable_width:.1f}"
         )
+
+    # ── Tight-fit: shrink sheet to blanks + 1" total scrap per side ───────
+    if tight_fit:
+        # Calculate minimum sheet: blanks + gutters + 0.5" trim each side + gripper
+        min_length = (best["outs_across"] * eff_blank_l
+                      + (best["outs_across"] - 1) * gutter
+                      + 2 * trim_allowance + gripper_edge)
+        min_width = (best["outs_down"] * eff_blank_w
+                     + (best["outs_down"] - 1) * gutter
+                     + 2 * trim_allowance)
+        # Only shrink, never grow
+        if min_length < s_length:
+            s_length = round(min_length, 2)
+            usable_length = s_length - (2 * trim_allowance) - gripper_edge
+        if min_width < s_width:
+            s_width = round(min_width, 2)
+            usable_width = s_width - (2 * trim_allowance)
 
     # ── Generate layout positions ──────────────────────────────────────────
     positions = []
@@ -172,7 +192,7 @@ def _calc_outs_for_orientation(blank_l, blank_w, usable_l, usable_w, gutter):
     }
 
 
-def calculate_layout_for_all_machines(blank_length, blank_width):
+def calculate_layout_for_all_machines(blank_length, blank_width, tight_fit=False):
     """
     Calculate die layout for every capable die-cut machine.
 
@@ -187,7 +207,7 @@ def calculate_layout_for_all_machines(blank_length, blank_width):
     results = []
     for mid in machines:
         layout = calculate_die_layout(
-            blank_length, blank_width, machine_id=mid,
+            blank_length, blank_width, machine_id=mid, tight_fit=tight_fit,
         )
         if layout["total_outs"] > 0:
             results.append(layout)

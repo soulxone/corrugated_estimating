@@ -210,8 +210,12 @@ def get_capable_machines_for_estimate(estimate_name):
 # ── Die Layout API ───────────────────────────────────────────────────────────
 
 @frappe.whitelist()
-def get_die_layout(estimate_name, machine_id=None, sheet_length=None, sheet_width=None):
-    """Calculate die layout for an estimate, optionally for a specific machine."""
+def get_die_layout(estimate_name, machine_id=None, sheet_length=None, sheet_width=None, tight_fit=True):
+    """Calculate die layout for an estimate, optionally for a specific machine.
+
+    tight_fit=True (default) sizes the sheet to fit blanks with minimal scrap
+    (0.5" trim per side = 1" total outside cuts).
+    """
     from corrugated_estimating.corrugated_estimating.layout import (
         calculate_die_layout,
         calculate_layout_for_all_machines,
@@ -220,6 +224,7 @@ def get_die_layout(estimate_name, machine_id=None, sheet_length=None, sheet_widt
     doc = frappe.get_doc("Corrugated Estimate", estimate_name)
     bl = float(doc.blank_length or 0)
     bw = float(doc.blank_width or 0)
+    tight = True if str(tight_fit).lower() in ("true", "1", "yes") else False
 
     if not bl or not bw:
         return {"error": "Blank dimensions not calculated yet"}
@@ -231,9 +236,10 @@ def get_die_layout(estimate_name, machine_id=None, sheet_length=None, sheet_widt
             machine_id=machine_id,
             sheet_length=float(sheet_length) if sheet_length else None,
             sheet_width=float(sheet_width) if sheet_width else None,
+            tight_fit=tight,
         )
 
-    return calculate_layout_for_all_machines(bl, bw)
+    return calculate_layout_for_all_machines(bl, bw, tight_fit=tight)
 
 
 @frappe.whitelist()
