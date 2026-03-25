@@ -71,7 +71,7 @@ frappe.ui.form.on("Corrugated Estimate", {
 
             if (frm.doc.die_layout_outs) {
                 frm.add_custom_button(__("View Die Layout"), function() {
-                    frappe.set_route("die-layout-viewer", { estimate: frm.doc.name });
+                    window.location.href = "/app/die-layout-viewer?estimate=" + encodeURIComponent(frm.doc.name);
                 }, __("Routing"));
             }
 

@@ -81,9 +81,9 @@ frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
     });
 
     // ── Auto-populate from URL params ─────────────────────────────────────
-    var routeParams = frappe.utils.get_url_params();
-    if (routeParams.estimate) {
-        estimateField.set_value(routeParams.estimate);
+    var routeParams = new URLSearchParams(window.location.search);
+    if (routeParams.get("estimate")) {
+        estimateField.set_value(routeParams.get("estimate"));
     }
 
     // ── Calculate button ──────────────────────────────────────────────────

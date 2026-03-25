@@ -49,9 +49,9 @@ frappe.pages["estimating-guide"].on_page_load = function (wrapper) {
     });
 
     // Auto-select from URL params
-    var params = frappe.utils.get_url_params();
-    if (params.style) {
-        var key = params.style.toUpperCase().replace("-","");
+    var params = new URLSearchParams(window.location.search);
+    if (params.get("style")) {
+        var key = params.get("style").toUpperCase().replace("-","");
         if (GUIDE_DATA[key]) {
             sidebar.find('[data-style="' + key + '"]').click();
         }
