@@ -264,3 +264,53 @@ def generate_cad_file(estimate_name):
     except Exception as e:
         frappe.log_error("CAD generation failed", frappe.get_traceback())
         return {"status": "error", "message": str(e)}
+
+
+# ── Dieline SVG Data API ─────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_dieline_svg(estimate_name=None, box_style=None, length=None, width=None,
+                    depth=None, flute_type=None, hand_holes=False, glue_tab=False,
+                    vent_holes=False):
+    """
+    Return SVG element data for a box dieline with Pacdora-style colored lines.
+
+    Can be called with an estimate_name (pulls dims from estimate) or with
+    explicit box_style + dimensions.
+    """
+    from corrugated_estimating.corrugated_estimating.dieline_renderer import get_dieline_data
+
+    if estimate_name:
+        doc = frappe.get_doc("Corrugated Estimate", estimate_name)
+        box_style = doc.box_style or "RSC"
+        length = float(doc.length_inside or 0)
+        width = float(doc.width_inside or 0)
+        depth = float(doc.depth_inside or 0)
+        flute_type = doc.flute_type
+    else:
+        length = float(length or 0)
+        width = float(width or 0)
+        depth = float(depth or 0)
+
+    if not (length and width and depth):
+        return {"error": "Box dimensions (L, W, D) are required"}
+
+    # Get caliper from flute
+    caliper_in = 3.7 / 25.4  # default C-flute
+    if flute_type:
+        try:
+            flute = frappe.get_doc("Corrugated Flute", flute_type)
+            cal_mm = float(flute.caliper_mm or 0)
+            if cal_mm > 0:
+                caliper_in = cal_mm / 25.4
+        except frappe.DoesNotExistError:
+            pass
+
+    hh = str(hand_holes).lower() in ("true", "1", "yes")
+    gt = str(glue_tab).lower() in ("true", "1", "yes")
+    vh = str(vent_holes).lower() in ("true", "1", "yes")
+
+    return get_dieline_data(
+        box_style=box_style, L=length, W=width, D=depth,
+        caliper_in=caliper_in, hand_holes=hh, glue_tab=gt, vent_holes=vh,
+    )

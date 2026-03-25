@@ -4,9 +4,11 @@
    Shows how blanks are nested onto a die cut sheet, with:
    - Trim zone (hatched border)
    - Gripper edge (dark strip at leading edge)
-   - Blank rectangles (colored, with dimension text)
+   - Blank rectangles OR detailed dielines (Pacdora-style colored lines)
    - Waste areas (highlighted)
    - Info panel: outs, waste %, utilization, sheet dims
+   - Legend: line type colors (Cut/Score/Fold/Glue)
+   - Toggle: Simple view (rectangles) vs Detailed view (dielines)
    ============================================================================= */
 
 frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
@@ -15,6 +17,12 @@ frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
         title: "Die Cut Layout Viewer",
         single_column: true,
     });
+
+    // Track current state
+    page._viewMode = "detailed"; // "simple" or "detailed"
+    page._currentLayout = null;
+    page._currentDielineData = null;
+    page._layerVisibility = { CUT: true, SCORE: true, FOLD: true, GLUE: true };
 
     page.main.html(`
         <div class="die-layout-container">
@@ -36,9 +44,10 @@ frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
                         <label>Sheet Width (in)</label>
                         <div id="sheet-width-field"></div>
                     </div>
-                    <div class="control-group">
+                    <div class="control-group control-buttons">
                         <button class="btn btn-primary btn-sm" id="calc-layout-btn">Calculate Layout</button>
-                        <button class="btn btn-default btn-sm" id="export-svg-btn" style="margin-left:4px;">Export PNG</button>
+                        <button class="btn btn-default btn-sm" id="toggle-view-btn" title="Toggle Simple/Detailed view">Detailed</button>
+                        <button class="btn btn-default btn-sm" id="export-svg-btn">Export PNG</button>
                     </div>
                 </div>
             </div>
@@ -49,6 +58,8 @@ frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
                 <div class="info-panel" id="info-panel">
                     <h4>Layout Info</h4>
                     <div id="info-content">No layout computed yet.</div>
+                    <div id="legend-container"></div>
+                    <div id="layer-toggles"></div>
                 </div>
             </div>
         </div>
@@ -86,6 +97,18 @@ frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
         estimateField.set_value(routeParams.get("estimate"));
     }
 
+    // ── Toggle View Mode ─────────────────────────────────────────────────
+    page.main.find("#toggle-view-btn").on("click", function () {
+        page._viewMode = page._viewMode === "simple" ? "detailed" : "simple";
+        $(this).text(page._viewMode === "simple" ? "Simple" : "Detailed");
+        $(this).toggleClass("btn-primary", page._viewMode === "detailed");
+        $(this).toggleClass("btn-default", page._viewMode === "simple");
+        // Re-render if we have data
+        if (page._currentLayout) {
+            _renderLayout(page, page._currentLayout, page._currentDielineData);
+        }
+    });
+
     // ── Calculate button ──────────────────────────────────────────────────
     page.main.find("#calc-layout-btn").on("click", function () {
         var est = estimateField.get_value();
@@ -94,41 +117,58 @@ frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
             return;
         }
 
-        frappe.call({
-            method: "corrugated_estimating.corrugated_estimating.api.get_die_layout",
-            args: {
+        // Fetch layout + dieline data in parallel
+        var layoutPromise = frappe.xcall(
+            "corrugated_estimating.corrugated_estimating.api.get_die_layout",
+            {
                 estimate_name: est,
                 machine_id: machineField.get_value() || null,
                 sheet_length: sheetLengthField.get_value() || null,
                 sheet_width: sheetWidthField.get_value() || null,
-            },
-            freeze: true,
-            freeze_message: __("Calculating die layout..."),
-            callback: function (r) {
-                if (!r.message) return;
-
-                var data = r.message;
-                // If array returned (all machines), show best
-                if (Array.isArray(data)) {
-                    if (data.length === 0) {
-                        page.main.find("#svg-container").html(
-                            '<div class="placeholder-text">No die cut machines can fit this blank size.</div>'
-                        );
-                        page.main.find("#info-content").html("No layout possible.");
-                        return;
-                    }
-                    // Render best layout, show comparison in info panel
-                    _renderLayout(page, data[0]);
-                    _renderComparisonInfo(page, data);
-                } else if (data.error) {
-                    page.main.find("#svg-container").html(
-                        '<div class="placeholder-text" style="color:red;">' + data.error + '</div>'
-                    );
-                } else {
-                    _renderLayout(page, data);
-                    _renderSingleInfo(page, data);
-                }
             }
+        );
+
+        var dielinePromise = frappe.xcall(
+            "corrugated_estimating.corrugated_estimating.api.get_dieline_svg",
+            { estimate_name: est }
+        );
+
+        frappe.freeze(__("Calculating die layout..."));
+
+        Promise.all([layoutPromise, dielinePromise]).then(function (results) {
+            frappe.unfreeze();
+            var data = results[0];
+            var dielineData = results[1];
+
+            page._currentDielineData = dielineData;
+
+            if (Array.isArray(data)) {
+                if (data.length === 0) {
+                    page.main.find("#svg-container").html(
+                        '<div class="placeholder-text">No die cut machines can fit this blank size.</div>'
+                    );
+                    page.main.find("#info-content").html("No layout possible.");
+                    return;
+                }
+                page._currentLayout = data[0];
+                _renderLayout(page, data[0], dielineData);
+                _renderComparisonInfo(page, data);
+            } else if (data.error) {
+                page.main.find("#svg-container").html(
+                    '<div class="placeholder-text" style="color:red;">' + data.error + '</div>'
+                );
+            } else {
+                page._currentLayout = data;
+                _renderLayout(page, data, dielineData);
+                _renderSingleInfo(page, data);
+            }
+
+            // Render legend and layer toggles
+            _renderLegend(page);
+            _renderLayerToggles(page);
+        }).catch(function (err) {
+            frappe.unfreeze();
+            frappe.msgprint(__("Error calculating layout: ") + (err.message || err));
         });
     });
 
@@ -141,12 +181,19 @@ frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
         }
         _exportSvgToPng(svgEl);
     });
+
+    // Auto-calculate if estimate was passed via URL
+    setTimeout(function () {
+        if (routeParams.get("estimate")) {
+            page.main.find("#calc-layout-btn").click();
+        }
+    }, 500);
 };
 
 
 // ── SVG Rendering ───────────────────────────────────────────────────────────
 
-function _renderLayout(page, layout) {
+function _renderLayout(page, layout, dielineData) {
     var container = page.main.find("#svg-container");
     container.empty();
 
@@ -155,7 +202,7 @@ function _renderLayout(page, layout) {
         return;
     }
 
-    // Scale: fit SVG to container width (max ~900px)
+    // Scale: fit SVG to container width
     var containerWidth = Math.min(container.width() || 900, 900);
     var scale = containerWidth / layout.sheet_length;
     var svgW = layout.sheet_length * scale;
@@ -168,15 +215,12 @@ function _renderLayout(page, layout) {
     svg += '<pattern id="trim-hatch" patternUnits="userSpaceOnUse" width="4" height="4">';
     svg += '<path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2" stroke="#cc0000" stroke-width="0.3" opacity="0.4"/>';
     svg += '</pattern>';
-    svg += '<pattern id="waste-hatch" patternUnits="userSpaceOnUse" width="6" height="6">';
-    svg += '<path d="M-1,1 l2,-2 M0,6 l6,-6 M5,7 l2,-2" stroke="#ff6600" stroke-width="0.2" opacity="0.2"/>';
-    svg += '</pattern>';
     svg += '</defs>';
 
     // Sheet boundary
     svg += '<rect x="0" y="0" width="' + layout.sheet_length + '" height="' + layout.sheet_width + '" fill="#f5f5f5" stroke="#333" stroke-width="0.5"/>';
 
-    // Trim zone (hatched border)
+    // Trim zone
     var trim = layout.trim_allowance;
     svg += '<rect x="0" y="0" width="' + layout.sheet_length + '" height="' + trim + '" fill="url(#trim-hatch)"/>';
     svg += '<rect x="0" y="' + (layout.sheet_width - trim) + '" width="' + layout.sheet_length + '" height="' + trim + '" fill="url(#trim-hatch)"/>';
@@ -191,34 +235,176 @@ function _renderLayout(page, layout) {
         svg += '<text x="' + (trim + gripper / 2) + '" y="' + (layout.sheet_width / 2) + '" text-anchor="middle" font-size="' + fontSize + '" fill="#666" transform="rotate(-90,' + (trim + gripper / 2) + ',' + (layout.sheet_width / 2) + ')">GRIPPER</text>';
     }
 
-    // Blank rectangles
+    // Render blanks
+    var useDetailed = page._viewMode === "detailed" && dielineData && dielineData.elements;
     var colors = ["#2490EF", "#28a745", "#6f42c1", "#fd7e14", "#e83e8c", "#20c997"];
+
     layout.layout_positions.forEach(function (pos, i) {
         var color = colors[i % colors.length];
-        svg += '<rect x="' + pos.x + '" y="' + pos.y + '" width="' + pos.width + '" height="' + pos.height + '" ';
-        svg += 'fill="' + color + '" fill-opacity="0.25" stroke="' + color + '" stroke-width="0.5"/>';
+
+        if (useDetailed) {
+            // Detailed view: render dieline inside each blank position
+            svg += _renderDielineInBlank(pos, dielineData, page._layerVisibility, i);
+        } else {
+            // Simple view: colored rectangles
+            svg += '<rect x="' + pos.x + '" y="' + pos.y + '" width="' + pos.width + '" height="' + pos.height + '" ';
+            svg += 'fill="' + color + '" fill-opacity="0.25" stroke="' + color + '" stroke-width="0.5"/>';
+        }
 
         // Dimension text inside blank
-        var txtSize = Math.max(1.5, Math.min(pos.width, pos.height) * 0.12);
+        var txtSize = Math.max(1.2, Math.min(pos.width, pos.height) * 0.1);
         var cx = pos.x + pos.width / 2;
         var cy = pos.y + pos.height / 2;
-        svg += '<text x="' + cx + '" y="' + cy + '" text-anchor="middle" dominant-baseline="middle" font-size="' + txtSize + '" fill="#333">';
-        svg += pos.width.toFixed(1) + '" x ' + pos.height.toFixed(1) + '"';
-        svg += '</text>';
+
+        if (!useDetailed) {
+            svg += '<text x="' + cx + '" y="' + cy + '" text-anchor="middle" dominant-baseline="middle" font-size="' + txtSize + '" fill="#333">';
+            svg += pos.width.toFixed(1) + '" x ' + pos.height.toFixed(1) + '"';
+            svg += '</text>';
+        }
 
         // Out number
-        svg += '<text x="' + (pos.x + 1) + '" y="' + (pos.y + txtSize + 1) + '" font-size="' + (txtSize * 0.8) + '" fill="' + color + '" font-weight="bold">#' + (i + 1) + '</text>';
+        svg += '<text x="' + (pos.x + 0.5) + '" y="' + (pos.y + txtSize + 0.5) + '" font-size="' + (txtSize * 0.7) + '" fill="' + color + '" font-weight="bold">#' + (i + 1) + '</text>';
     });
 
     // Sheet dimension callouts
     var dimFont = Math.max(2, layout.sheet_width * 0.03);
-    // Bottom: sheet length
     svg += '<text x="' + (layout.sheet_length / 2) + '" y="' + (layout.sheet_width - trim / 3) + '" text-anchor="middle" font-size="' + dimFont + '" fill="#c00">' + layout.sheet_length.toFixed(1) + '"</text>';
-    // Right: sheet width
     svg += '<text x="' + (layout.sheet_length - trim / 3) + '" y="' + (layout.sheet_width / 2) + '" text-anchor="middle" font-size="' + dimFont + '" fill="#c00" transform="rotate(-90,' + (layout.sheet_length - trim / 3) + ',' + (layout.sheet_width / 2) + ')">' + layout.sheet_width.toFixed(1) + '"</text>';
 
     svg += '</svg>';
     container.html(svg);
+}
+
+
+// ── Render Dieline Elements Inside a Blank Position ─────────────────────────
+
+function _renderDielineInBlank(pos, dielineData, layerVis, index) {
+    var svg = '';
+    var bl = dielineData.blank_length || pos.width;
+    var bw = dielineData.blank_width || pos.height;
+
+    // Scale dieline to fit the blank position
+    var scaleX = pos.width / bl;
+    var scaleY = pos.height / bw;
+
+    // Group with transform to position and scale
+    svg += '<g transform="translate(' + pos.x + ',' + pos.y + ') scale(' + scaleX.toFixed(4) + ',' + scaleY.toFixed(4) + ')">';
+
+    // Light background for the blank
+    svg += '<rect x="0" y="0" width="' + bl + '" height="' + bw + '" fill="#fff" fill-opacity="0.9" stroke="#999" stroke-width="' + (0.3 / scaleX) + '"/>';
+
+    // Render each element
+    (dielineData.elements || []).forEach(function (el) {
+        if (!layerVis[el.line_type] && el.type !== "label") return;
+
+        var style = dielineData.line_styles[el.line_type] || dielineData.line_styles["CUT"];
+        var sw = (style.stroke_width || 0.4) / Math.min(scaleX, scaleY);
+        var strokeAttr = 'stroke="' + style.stroke + '" stroke-width="' + sw.toFixed(2) + '" fill="none"';
+        if (style.dash) {
+            // Scale dash pattern inversely
+            var dashScale = 1 / Math.min(scaleX, scaleY);
+            var scaledDash = style.dash.split(",").map(function (d) {
+                return (parseFloat(d) * dashScale).toFixed(1);
+            }).join(",");
+            strokeAttr += ' stroke-dasharray="' + scaledDash + '"';
+        }
+
+        switch (el.type) {
+            case "line":
+                svg += '<line x1="' + el.x1 + '" y1="' + el.y1 + '" x2="' + el.x2 + '" y2="' + el.y2 + '" ' + strokeAttr + '/>';
+                break;
+
+            case "rect":
+                svg += '<rect x="' + el.x + '" y="' + el.y + '" width="' + el.width + '" height="' + el.height + '" ' + strokeAttr + '/>';
+                break;
+
+            case "polyline":
+                var pts = el.points.map(function (p) { return p[0] + "," + p[1]; }).join(" ");
+                if (el.closed) {
+                    svg += '<polygon points="' + pts + '" ' + strokeAttr + '/>';
+                } else {
+                    svg += '<polyline points="' + pts + '" ' + strokeAttr + '/>';
+                }
+                break;
+
+            case "circle":
+                svg += '<circle cx="' + el.cx + '" cy="' + el.cy + '" r="' + el.r + '" ' + strokeAttr + '/>';
+                break;
+
+            case "ellipse":
+                svg += '<ellipse cx="' + el.cx + '" cy="' + el.cy + '" rx="' + el.rx + '" ry="' + el.ry + '" ' + strokeAttr + '/>';
+                break;
+
+            case "label":
+                var labelSize = (el.size || 0.2) * 5;
+                svg += '<text x="' + el.x + '" y="' + el.y + '" text-anchor="middle" dominant-baseline="middle" font-size="' + labelSize + '" fill="#555" font-family="sans-serif">' + el.text + '</text>';
+                break;
+        }
+    });
+
+    svg += '</g>';
+    return svg;
+}
+
+
+// ── Legend ────────────────────────────────────────────────────────────────────
+
+function _renderLegend(page) {
+    var legend = '<hr style="margin:10px 0 8px;"><h5>Dieline Legend</h5>';
+    legend += '<div class="dieline-legend">';
+
+    var items = [
+        { type: "CUT",   color: "#0066CC", label: "Cut Line",   dash: "" },
+        { type: "SCORE", color: "#CC0000", label: "Score Line", dash: "6,4" },
+        { type: "FOLD",  color: "#009933", label: "Fold Line",  dash: "2,4" },
+        { type: "GLUE",  color: "#FF6600", label: "Glue Tab",   dash: "8,4,2,4" },
+    ];
+
+    items.forEach(function (item) {
+        legend += '<div class="legend-item">';
+        legend += '<svg width="30" height="12"><line x1="0" y1="6" x2="30" y2="6" stroke="' + item.color + '" stroke-width="2"';
+        if (item.dash) legend += ' stroke-dasharray="' + item.dash + '"';
+        legend += '/></svg>';
+        legend += '<span class="legend-label">' + item.label + '</span>';
+        legend += '</div>';
+    });
+
+    legend += '</div>';
+    page.main.find("#legend-container").html(legend);
+}
+
+
+// ── Layer Toggles ────────────────────────────────────────────────────────────
+
+function _renderLayerToggles(page) {
+    var html = '<h5 style="margin-top:8px;">Layers</h5><div class="layer-toggles">';
+
+    var layers = [
+        { key: "CUT", label: "Cut", color: "#0066CC" },
+        { key: "SCORE", label: "Score", color: "#CC0000" },
+        { key: "FOLD", label: "Fold", color: "#009933" },
+        { key: "GLUE", label: "Glue", color: "#FF6600" },
+    ];
+
+    layers.forEach(function (layer) {
+        var checked = page._layerVisibility[layer.key] ? "checked" : "";
+        html += '<label class="layer-toggle" style="border-left: 3px solid ' + layer.color + ';">';
+        html += '<input type="checkbox" data-layer="' + layer.key + '" ' + checked + '> ';
+        html += layer.label;
+        html += '</label>';
+    });
+
+    html += '</div>';
+    page.main.find("#layer-toggles").html(html);
+
+    // Bind toggle events
+    page.main.find("#layer-toggles input").on("change", function () {
+        var layerKey = $(this).data("layer");
+        page._layerVisibility[layerKey] = $(this).is(":checked");
+        if (page._currentLayout) {
+            _renderLayout(page, page._currentLayout, page._currentDielineData);
+        }
+    });
 }
 
 
@@ -263,7 +449,6 @@ function _renderComparisonInfo(page, layouts) {
 
     html += '</table>';
 
-    // Also show details for best layout
     html += '<hr style="margin:8px 0;">';
     html += '<h5>Best Layout Details</h5>';
     var best = layouts[0];
