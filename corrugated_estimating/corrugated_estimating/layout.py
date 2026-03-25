@@ -285,6 +285,164 @@ def calculate_optimal_sheet_size(
     return best_result or _empty_layout("No valid configuration found")
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# MULTI-PART NESTING (Phase 3 — Part Kit)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def calculate_multi_part_layout(
+    part_specs,
+    machine_id=None,
+    trim_allowance=0.5,
+    gripper_edge=1.0,
+    gutter=0.75,
+):
+    """
+    Nest multiple part types onto a single die sheet using shelf-based packing.
+
+    Args:
+        part_specs: list of dicts with keys:
+            blank_length, blank_width, quantity, part_type, label
+        machine_id: optional machine constraint
+        trim_allowance, gripper_edge, gutter: sheet margins
+
+    Returns dict with layout positions (including part_type labels) + stats.
+    """
+    if not part_specs:
+        return _empty_layout("No parts to nest")
+
+    # Expand parts by quantity
+    blanks = []
+    for spec in part_specs:
+        for i in range(spec.get("quantity", 1)):
+            bl = float(spec["blank_length"])
+            bw = float(spec["blank_width"])
+            # Try both orientations — store the one with longer dim as length
+            if bl < bw:
+                bl, bw = bw, bl
+            blanks.append({
+                "length": bl,
+                "width": bw,
+                "part_type": spec.get("part_type", "Box Body"),
+                "label": spec.get("label", ""),
+            })
+
+    # Sort by area descending (largest first) for better packing
+    blanks.sort(key=lambda b: b["length"] * b["width"], reverse=True)
+
+    # Determine sheet size from machine or calculate minimum
+    if machine_id:
+        try:
+            machine = frappe.get_doc("Corrugated Machine", machine_id)
+            sheet_l = machine.blank_max_width or 110
+            sheet_w = machine.cutting_surface_width or machine.blank_max_length or 80
+        except frappe.DoesNotExistError:
+            sheet_l, sheet_w = 110, 80
+    else:
+        # Auto-size: find minimum sheet that fits all blanks
+        # Start with a reasonable max and we'll tight-fit at the end
+        sheet_l, sheet_w = 110, 80
+
+    usable_l = sheet_l - (2 * trim_allowance) - gripper_edge
+    usable_w = sheet_w - (2 * trim_allowance)
+
+    # ── Shelf-based bin packing ─────────────────────────────────────────
+    # Place blanks into horizontal shelves (rows)
+    shelves = []  # each shelf: {y, height, items: [{x, blank}]}
+    x_start = trim_allowance + gripper_edge
+    y_start = trim_allowance
+
+    for blank in blanks:
+        bl, bw = blank["length"], blank["width"]
+        placed = False
+
+        # Try to fit in existing shelf
+        for shelf in shelves:
+            # Calculate remaining width in this shelf
+            used_x = sum(item["blank"]["length"] + gutter for item in shelf["items"])
+            if used_x > 0:
+                used_x -= gutter  # no gutter after last item
+            remaining_x = usable_l - used_x
+
+            if bl + gutter <= remaining_x + 0.01 and bw <= shelf["height"] + 0.01:
+                x = x_start + used_x + (gutter if shelf["items"] else 0)
+                shelf["items"].append({"x": x, "blank": blank})
+                placed = True
+                break
+
+        if not placed:
+            # Create new shelf
+            used_y = sum(s["height"] + gutter for s in shelves)
+            if used_y > 0:
+                used_y -= gutter
+            remaining_y = usable_w - used_y
+
+            if bw <= remaining_y + 0.01:
+                y = y_start + used_y + (gutter if shelves else 0)
+                shelves.append({
+                    "y": y,
+                    "height": bw,
+                    "items": [{"x": x_start, "blank": blank}],
+                })
+            # else: blank doesn't fit — skip it
+
+    # ── Build positions list ──────────────────────────────────────────
+    positions = []
+    total_blank_area = 0
+    idx = 0
+
+    for shelf in shelves:
+        for item in shelf["items"]:
+            bl = item["blank"]["length"]
+            bw = item["blank"]["width"]
+            positions.append({
+                "row": shelves.index(shelf),
+                "col": shelf["items"].index(item),
+                "x": round(item["x"], 3),
+                "y": round(shelf["y"], 3),
+                "width": round(bl, 3),
+                "height": round(bw, 3),
+                "part_type": item["blank"]["part_type"],
+                "label": item["blank"]["label"],
+            })
+            total_blank_area += bl * bw
+            idx += 1
+
+    if not positions:
+        return _empty_layout("No blanks fit on the sheet")
+
+    # ── Tight-fit the sheet ───────────────────────────────────────────
+    max_x = max(p["x"] + p["width"] for p in positions)
+    max_y = max(p["y"] + p["height"] for p in positions)
+    tight_l = round(max_x + trim_allowance, 2)
+    tight_w = round(max_y + trim_allowance, 2)
+
+    # Only shrink, never grow
+    sheet_l = min(sheet_l, tight_l)
+    sheet_w = min(sheet_w, tight_w)
+
+    sheet_area = sheet_l * sheet_w
+    waste_pct = (1 - total_blank_area / sheet_area) * 100 if sheet_area else 100
+
+    return {
+        "total_outs": len(positions),
+        "layout_positions": positions,
+        "sheet_length": round(sheet_l, 2),
+        "sheet_width": round(sheet_w, 2),
+        "sheet_area_sqin": round(sheet_area, 2),
+        "sheet_area_sqft": round(sheet_area / 144, 4),
+        "total_blank_area_sqin": round(total_blank_area, 2),
+        "total_blank_area_sqft": round(total_blank_area / 144, 4),
+        "waste_pct": round(waste_pct, 1),
+        "utilization_pct": round(100 - waste_pct, 1),
+        "trim_allowance": trim_allowance,
+        "gripper_edge": gripper_edge,
+        "gutter": gutter,
+        "machine_id": machine_id or "",
+        "machine_name": "",
+        "error": "",
+    }
+
+
 def _empty_layout(reason=""):
     """Return an empty layout result with error message."""
     return {

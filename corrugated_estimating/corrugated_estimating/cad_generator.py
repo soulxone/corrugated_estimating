@@ -615,3 +615,142 @@ def generate_cad_for_estimate(estimate_name):
     )
 
     return file_doc.file_url
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DIE BOARD LAYOUT DXF — full sheet with nested blanks
+# ══════════════════════════════════════════════════════════════════════════════
+
+def generate_die_board_dxf(estimate_name, machine_id=None):
+    """
+    Generate a die board layout DXF showing nested blanks on a sheet.
+
+    Includes: sheet border, trim zones, registration marks, nested dielines,
+    and dimension annotations.
+    """
+    from corrugated_estimating.corrugated_estimating.layout import (
+        calculate_die_layout,
+        calculate_layout_for_all_machines,
+    )
+
+    doc = frappe.get_doc("Corrugated Estimate", estimate_name)
+    L = float(doc.length_inside or 0)
+    W = float(doc.width_inside or 0)
+    D = float(doc.depth_inside or 0)
+    bl = float(doc.blank_length or 0)
+    bw = float(doc.blank_width or 0)
+
+    if not (bl and bw):
+        return None
+
+    # Get layout
+    if machine_id:
+        layout = calculate_die_layout(bl, bw, machine_id=machine_id, tight_fit=True)
+    else:
+        layouts = calculate_layout_for_all_machines(bl, bw, tight_fit=True)
+        layout = layouts[0] if layouts else None
+
+    if not layout or layout.get("error"):
+        return None
+
+    # Get caliper
+    caliper_in = 3.7 / MM_PER_INCH
+    if doc.flute_type:
+        try:
+            flute = frappe.get_doc("Corrugated Flute", doc.flute_type)
+            caliper_in = float(flute.caliper_mm or 0) / MM_PER_INCH
+        except frappe.DoesNotExistError:
+            pass
+    if not caliper_in:
+        caliper_in = 3.7 / MM_PER_INCH
+
+    # Create DXF
+    dxf_doc = _setup_doc()
+    dxf_doc.layers.add("LAYOUT", color=6)  # magenta — layout grid
+    dxf_doc.layers.add("REGISTRATION", color=1)  # red — reg marks
+    msp = dxf_doc.modelspace()
+
+    sheet_l = layout["sheet_length"]
+    sheet_w = layout["sheet_width"]
+    trim = layout["trim_allowance"]
+    gripper = layout["gripper_edge"]
+
+    # Sheet border
+    _rect(msp, 0, 0, sheet_l, sheet_w, "CUT")
+
+    # Trim zone (inner boundary)
+    inner_x0 = trim + gripper
+    inner_y0 = trim
+    inner_x1 = sheet_l - trim
+    inner_y1 = sheet_w - trim
+    _rect(msp, inner_x0, inner_y0, inner_x1, inner_y1, "LAYOUT")
+
+    # Registration marks (crosses at corners)
+    reg_size = 0.5
+    for rx, ry in [(0, 0), (sheet_l, 0), (0, sheet_w), (sheet_l, sheet_w)]:
+        _line(msp, rx - reg_size, ry, rx + reg_size, ry, "REGISTRATION")
+        _line(msp, rx, ry - reg_size, rx, ry + reg_size, "REGISTRATION")
+
+    # Center registration marks
+    cx, cy = sheet_l / 2, sheet_w / 2
+    _line(msp, cx - reg_size, 0, cx + reg_size, 0, "REGISTRATION")
+    _line(msp, cx - reg_size, sheet_w, cx + reg_size, sheet_w, "REGISTRATION")
+    _line(msp, 0, cy - reg_size, 0, cy + reg_size, "REGISTRATION")
+    _line(msp, sheet_l, cy - reg_size, sheet_l, cy + reg_size, "REGISTRATION")
+
+    # Resolve box style for dieline generation
+    style = (doc.box_style or "RSC").upper().replace("-", "").replace(" ", "")
+    generator = GENERATORS.get(style, generate_rsc_dxf)
+
+    # Nested blanks — draw each dieline at its layout position
+    for pos in layout["layout_positions"]:
+        px, py = pos["x"], pos["y"]
+        pw, ph = pos["width"], pos["height"]
+
+        # Draw blank outline on LAYOUT layer
+        _rect(msp, px, py, px + pw, py + ph, "LAYOUT")
+
+        # Generate the dieline at this position using an insert/offset
+        # For simplicity, draw the outline + score lines offset to position
+        # Full dieline would require translating all geometry — use outline + cross
+        _rect(msp, px, py, px + pw, py + ph, "CUT")
+
+        # Score cross (simplified dieline indicator)
+        _line(msp, px, py + ph / 2, px + pw, py + ph / 2, "SCORE")
+        _line(msp, px + pw / 2, py, px + pw / 2, py + ph, "SCORE")
+
+    # Dimensions
+    _hdim(msp, 0, sheet_l, 0, -2.5)
+    _vdim(msp, 0, sheet_w, 0, -2.5)
+
+    # Title block
+    _title_block(msp, 0, -4, [
+        f"DIE BOARD LAYOUT — {estimate_name}",
+        f"Style: {style}  |  Sheet: {sheet_l:.1f}\" x {sheet_w:.1f}\"",
+        f"Outs: {layout['total_outs']}  ({layout['outs_across']}x{layout['outs_down']})  |  Waste: {layout['waste_pct']:.1f}%",
+        f"Machine: {layout.get('machine_name', '')}  |  Blank: {bl:.2f}\" x {bw:.2f}\"",
+    ])
+
+    # Save
+    filename = f"{estimate_name}_die_board.dxf"
+    tmp_path = os.path.join(tempfile.gettempdir(), filename)
+    dxf_doc.saveas(tmp_path)
+
+    # Attach
+    if doc.cad_file:
+        # Don't remove old single-blank DXF — this is a separate die board file
+        pass
+
+    with open(tmp_path, "rb") as f:
+        file_doc = save_file(
+            filename, f.read(),
+            "Corrugated Estimate", estimate_name,
+            is_private=1,
+        )
+
+    try:
+        os.remove(tmp_path)
+    except OSError:
+        pass
+
+    return file_doc.file_url

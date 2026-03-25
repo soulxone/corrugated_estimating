@@ -266,6 +266,23 @@ def generate_cad_file(estimate_name):
         return {"status": "error", "message": str(e)}
 
 
+@frappe.whitelist()
+def generate_die_board_dxf(estimate_name, machine_id=None):
+    """Generate full die board DXF with nested blanks on sheet."""
+    from corrugated_estimating.corrugated_estimating.cad_generator import (
+        generate_die_board_dxf as _gen_die_board,
+    )
+    try:
+        file_url = _gen_die_board(estimate_name, machine_id=machine_id)
+        if file_url:
+            frappe.db.commit()
+            return {"status": "success", "file_url": file_url}
+        return {"status": "error", "message": "Could not generate die board DXF."}
+    except Exception as e:
+        frappe.log_error("Die board DXF generation failed", frappe.get_traceback())
+        return {"status": "error", "message": str(e)}
+
+
 # ── Dieline SVG Data API ─────────────────────────────────────────────────────
 
 @frappe.whitelist()
@@ -314,3 +331,34 @@ def get_dieline_svg(estimate_name=None, box_style=None, length=None, width=None,
         box_style=box_style, L=length, W=width, D=depth,
         caliper_in=caliper_in, hand_holes=hh, glue_tab=gt, vent_holes=vh,
     )
+
+
+# ── Part Kit Layout API ──────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def get_part_kit_layout(kit_name):
+    """Calculate multi-part die layout for a Part Kit."""
+    from corrugated_estimating.corrugated_estimating.layout import (
+        calculate_multi_part_layout,
+    )
+
+    doc = frappe.get_doc("Corrugated Part Kit", kit_name)
+
+    part_specs = []
+    for part in doc.parts:
+        bl = float(part.blank_length or 0)
+        bw = float(part.blank_width or 0)
+        qty = int(part.quantity_per_kit or 1)
+        if bl > 0 and bw > 0:
+            part_specs.append({
+                "blank_length": bl,
+                "blank_width": bw,
+                "quantity": qty,
+                "part_type": part.part_type or "Box Body",
+                "label": f"{part.part_type}: {bl:.1f}x{bw:.1f}",
+            })
+
+    if not part_specs:
+        return {"error": "No parts with valid blank dimensions"}
+
+    return calculate_multi_part_layout(part_specs)

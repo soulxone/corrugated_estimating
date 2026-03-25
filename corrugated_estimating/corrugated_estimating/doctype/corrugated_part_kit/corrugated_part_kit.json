@@ -1,0 +1,158 @@
+{
+  "actions": [],
+  "autoname": "naming_series:",
+  "creation": "2026-03-25 00:00:00.000000",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "field_order": [
+    "naming_series",
+    "kit_name",
+    "description",
+    "col1",
+    "linked_estimate",
+    "flute_type",
+    "wall_type",
+    "section_parts",
+    "parts",
+    "section_layout",
+    "layout_machine",
+    "layout_outs",
+    "layout_waste_pct",
+    "col2",
+    "layout_sheet_length",
+    "layout_sheet_width",
+    "layout_utilization_pct"
+  ],
+  "fields": [
+    {
+      "fieldname": "naming_series",
+      "fieldtype": "Select",
+      "hidden": 1,
+      "label": "Series",
+      "options": "PK-.YYYY.-.#####",
+      "default": "PK-.YYYY.-.#####"
+    },
+    {
+      "fieldname": "kit_name",
+      "fieldtype": "Data",
+      "label": "Kit Name",
+      "reqd": 1
+    },
+    {
+      "fieldname": "description",
+      "fieldtype": "Small Text",
+      "label": "Description"
+    },
+    {
+      "fieldname": "col1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "linked_estimate",
+      "fieldtype": "Link",
+      "label": "Linked Estimate",
+      "options": "Corrugated Estimate"
+    },
+    {
+      "fieldname": "flute_type",
+      "fieldtype": "Link",
+      "label": "Flute Type",
+      "options": "Corrugated Flute"
+    },
+    {
+      "fieldname": "wall_type",
+      "fieldtype": "Select",
+      "label": "Wall Type",
+      "options": "Single Wall\nDouble Wall\nTriple Wall",
+      "default": "Single Wall"
+    },
+    {
+      "fieldname": "section_parts",
+      "fieldtype": "Section Break",
+      "label": "Parts"
+    },
+    {
+      "fieldname": "parts",
+      "fieldtype": "Table",
+      "label": "Parts",
+      "options": "Corrugated Part Kit Item",
+      "reqd": 1
+    },
+    {
+      "fieldname": "section_layout",
+      "fieldtype": "Section Break",
+      "label": "Die Layout Summary",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "layout_machine",
+      "fieldtype": "Link",
+      "label": "Best Machine",
+      "options": "Corrugated Machine",
+      "read_only": 1
+    },
+    {
+      "fieldname": "layout_outs",
+      "fieldtype": "Int",
+      "label": "Total Outs",
+      "read_only": 1
+    },
+    {
+      "fieldname": "layout_waste_pct",
+      "fieldtype": "Float",
+      "label": "Waste %",
+      "read_only": 1,
+      "precision": 1
+    },
+    {
+      "fieldname": "col2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "layout_sheet_length",
+      "fieldtype": "Float",
+      "label": "Sheet Length (in)",
+      "read_only": 1,
+      "precision": 2
+    },
+    {
+      "fieldname": "layout_sheet_width",
+      "fieldtype": "Float",
+      "label": "Sheet Width (in)",
+      "read_only": 1,
+      "precision": 2
+    },
+    {
+      "fieldname": "layout_utilization_pct",
+      "fieldtype": "Float",
+      "label": "Utilization %",
+      "read_only": 1,
+      "precision": 1
+    }
+  ],
+  "links": [],
+  "modified": "2026-03-25 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Corrugated Estimating",
+  "name": "Corrugated Part Kit",
+  "naming_rule": "By \"Naming Series\" field",
+  "owner": "Administrator",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "share": 1,
+      "write": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "title_field": "kit_name"
+}

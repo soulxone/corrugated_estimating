@@ -1,0 +1,119 @@
+{
+  "actions": [],
+  "creation": "2026-03-25 00:00:00.000000",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "istable": 1,
+  "field_order": [
+    "part_type",
+    "box_style",
+    "col1",
+    "length",
+    "width",
+    "depth",
+    "col2",
+    "quantity_per_kit",
+    "flute_type",
+    "col3",
+    "blank_length",
+    "blank_width",
+    "blank_area_sqft"
+  ],
+  "fields": [
+    {
+      "fieldname": "part_type",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Part Type",
+      "options": "Box Body\nPartition\nPad\nInsert\nDivider\nLiner\nSleeve",
+      "reqd": 1,
+      "default": "Box Body"
+    },
+    {
+      "fieldname": "box_style",
+      "fieldtype": "Link",
+      "in_list_view": 1,
+      "label": "Box Style",
+      "options": "Corrugated Box Style"
+    },
+    {
+      "fieldname": "col1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "length",
+      "fieldtype": "Float",
+      "in_list_view": 1,
+      "label": "Length (in)",
+      "reqd": 1,
+      "precision": 4
+    },
+    {
+      "fieldname": "width",
+      "fieldtype": "Float",
+      "in_list_view": 1,
+      "label": "Width (in)",
+      "reqd": 1,
+      "precision": 4
+    },
+    {
+      "fieldname": "depth",
+      "fieldtype": "Float",
+      "label": "Depth (in)",
+      "precision": 4
+    },
+    {
+      "fieldname": "col2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "quantity_per_kit",
+      "fieldtype": "Int",
+      "in_list_view": 1,
+      "label": "Qty per Kit",
+      "reqd": 1,
+      "default": 1
+    },
+    {
+      "fieldname": "flute_type",
+      "fieldtype": "Link",
+      "label": "Flute",
+      "options": "Corrugated Flute"
+    },
+    {
+      "fieldname": "col3",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "blank_length",
+      "fieldtype": "Float",
+      "label": "Blank Length (in)",
+      "read_only": 1,
+      "precision": 4
+    },
+    {
+      "fieldname": "blank_width",
+      "fieldtype": "Float",
+      "label": "Blank Width (in)",
+      "read_only": 1,
+      "precision": 4
+    },
+    {
+      "fieldname": "blank_area_sqft",
+      "fieldtype": "Float",
+      "label": "Blank Area (sqft)",
+      "read_only": 1,
+      "precision": 6
+    }
+  ],
+  "links": [],
+  "modified": "2026-03-25 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Corrugated Estimating",
+  "name": "Corrugated Part Kit Item",
+  "owner": "Administrator",
+  "permissions": [],
+  "sort_field": "modified",
+  "sort_order": "DESC"
+}

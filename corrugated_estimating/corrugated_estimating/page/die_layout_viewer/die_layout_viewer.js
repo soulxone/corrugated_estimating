@@ -48,6 +48,7 @@ frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
                         <button class="btn btn-primary btn-sm" id="calc-layout-btn">Calculate Layout</button>
                         <button class="btn btn-default btn-sm" id="toggle-view-btn" title="Toggle Simple/Detailed view">Detailed</button>
                         <button class="btn btn-default btn-sm" id="export-svg-btn">Export PNG</button>
+                        <button class="btn btn-default btn-sm" id="export-dxf-btn" title="Generate die board DXF file">Export DXF</button>
                     </div>
                 </div>
             </div>
@@ -182,6 +183,33 @@ frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
         _exportSvgToPng(svgEl);
     });
 
+    // ── Export DXF Die Board ──────────────────────────────────────────────
+    page.main.find("#export-dxf-btn").on("click", function () {
+        var est = estimateField.get_value();
+        if (!est) {
+            frappe.msgprint(__("Please select an estimate first."));
+            return;
+        }
+
+        frappe.call({
+            method: "corrugated_estimating.corrugated_estimating.api.generate_die_board_dxf",
+            args: {
+                estimate_name: est,
+                machine_id: machineField.get_value() || null,
+            },
+            freeze: true,
+            freeze_message: __("Generating die board DXF..."),
+            callback: function (r) {
+                if (r.message && r.message.status === "success") {
+                    window.open(r.message.file_url, "_blank");
+                    frappe.show_alert({message: __("Die board DXF generated!"), indicator: "green"});
+                } else {
+                    frappe.msgprint(r.message ? r.message.message : __("Failed to generate DXF."));
+                }
+            }
+        });
+    });
+
     // Auto-calculate if estimate was passed via URL
     setTimeout(function () {
         if (routeParams.get("estimate")) {
@@ -238,9 +266,18 @@ function _renderLayout(page, layout, dielineData) {
     // Render blanks
     var useDetailed = page._viewMode === "detailed" && dielineData && dielineData.elements;
     var colors = ["#2490EF", "#28a745", "#6f42c1", "#fd7e14", "#e83e8c", "#20c997"];
+    var partTypeColors = {
+        "Box Body": "#2490EF",
+        "Partition": "#28a745",
+        "Pad": "#fd7e14",
+        "Insert": "#6f42c1",
+        "Divider": "#e83e8c",
+        "Liner": "#20c997",
+        "Sleeve": "#6610f2",
+    };
 
     layout.layout_positions.forEach(function (pos, i) {
-        var color = colors[i % colors.length];
+        var color = pos.part_type ? (partTypeColors[pos.part_type] || colors[i % colors.length]) : colors[i % colors.length];
 
         if (useDetailed) {
             // Detailed view: render dieline inside each blank position
