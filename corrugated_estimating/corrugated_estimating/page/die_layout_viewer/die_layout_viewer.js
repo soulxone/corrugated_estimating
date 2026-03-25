@@ -133,10 +133,10 @@ frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
             { estimate_name: est }
         );
 
-        frappe.freeze(__("Calculating die layout..."));
+        frappe.dom.freeze(__("Calculating die layout..."));
 
         Promise.all([layoutPromise, dielinePromise]).then(function (results) {
-            frappe.unfreeze();
+            frappe.dom.unfreeze();
             var data = results[0];
             var dielineData = results[1];
 
@@ -167,7 +167,7 @@ frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
             _renderLegend(page);
             _renderLayerToggles(page);
         }).catch(function (err) {
-            frappe.unfreeze();
+            frappe.dom.unfreeze();
             frappe.msgprint(__("Error calculating layout: ") + (err.message || err));
         });
     });
