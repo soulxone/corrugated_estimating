@@ -1,0 +1,161 @@
+/* Die Line Studio — Interactive Dieline Editor */
+
+.studio-container {
+    padding: 15px;
+    display: flex;
+    gap: 15px;
+    height: calc(100vh - 120px);
+}
+
+/* Left Panel: Input Controls */
+.studio-left {
+    width: 240px;
+    min-width: 220px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 12px;
+    overflow-y: auto;
+}
+
+.studio-left h4 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: #2490EF;
+    border-bottom: 2px solid #2490EF;
+    padding-bottom: 6px;
+}
+
+.studio-left .control-group {
+    margin-bottom: 8px;
+}
+
+.studio-left .control-group label {
+    display: block;
+    font-size: 10px;
+    color: #888;
+    margin-bottom: 2px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.studio-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+    margin: 12px 0 6px;
+    padding-top: 8px;
+    border-top: 1px solid #eee;
+}
+
+/* Center Panel: SVG Canvas */
+.studio-canvas {
+    flex: 1;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    position: relative;
+    background-image: radial-gradient(circle, #e0e0e0 0.5px, transparent 0.5px);
+    background-size: 20px 20px;
+}
+
+.studio-canvas svg {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.studio-placeholder {
+    color: #aaa;
+    font-size: 14px;
+    text-align: center;
+    padding: 40px;
+}
+
+/* Right Panel: Features + Export */
+.studio-right {
+    width: 240px;
+    min-width: 220px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 12px;
+    overflow-y: auto;
+}
+
+.studio-right h4 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: #2490EF;
+    border-bottom: 2px solid #2490EF;
+    padding-bottom: 6px;
+}
+
+/* Feature Toggles */
+.studio-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    margin-bottom: 4px;
+    cursor: pointer;
+}
+
+.studio-toggle input {
+    margin: 0;
+}
+
+/* Measurements Readout */
+.studio-readout {
+    font-size: 11px;
+    margin-top: 10px;
+}
+
+.studio-readout table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.studio-readout td {
+    padding: 3px 4px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.studio-readout .ro-label {
+    color: #888;
+    font-size: 10px;
+}
+
+.studio-readout .ro-value {
+    font-weight: 600;
+    color: #333;
+    text-align: right;
+}
+
+/* Export Buttons */
+.studio-export-group {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.studio-export-group .btn {
+    width: 100%;
+    font-size: 11px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .studio-container {
+        flex-direction: column;
+        height: auto;
+    }
+    .studio-left, .studio-right {
+        width: 100%;
+    }
+}

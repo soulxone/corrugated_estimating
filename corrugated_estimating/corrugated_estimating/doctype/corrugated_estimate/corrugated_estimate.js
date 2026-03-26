@@ -107,6 +107,10 @@ frappe.ui.form.on("Corrugated Estimate", {
                 }, __("CAD"));
             }
 
+            frm.add_custom_button(__("Die Line Studio"), function() {
+                window.location.href = "/app/die-line-studio?estimate=" + encodeURIComponent(frm.doc.name);
+            }, __("CAD"));
+
             // ── Estimating tools ──────────────────────────────────────────
             frm.add_custom_button(__("Sensitivity Analysis"), function() {
                 _show_sensitivity_dialog(frm);

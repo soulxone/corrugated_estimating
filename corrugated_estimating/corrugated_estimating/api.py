@@ -363,3 +363,24 @@ def get_part_kit_layout(kit_name):
         return {"error": "No parts with valid blank dimensions"}
 
     return calculate_multi_part_layout(part_specs)
+
+
+# ── Die Line Studio API ──────────────────────────────────────────────────────
+
+@frappe.whitelist()
+def create_estimate_from_studio(box_style, length, width, depth,
+                                 flute_type=None, wall_type=None,
+                                 joint_width=1.25, **kwargs):
+    """Create a new Corrugated Estimate from Die Line Studio parameters."""
+    doc = frappe.new_doc("Corrugated Estimate")
+    doc.box_style = box_style or "RSC"
+    doc.length_inside = float(length or 0)
+    doc.width_inside = float(width or 0)
+    doc.depth_inside = float(depth or 0)
+    if flute_type:
+        doc.flute_type = flute_type
+    if wall_type:
+        doc.wall_type = wall_type
+    doc.save()
+    frappe.db.commit()
+    return {"name": doc.name, "status": "success"}
