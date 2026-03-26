@@ -288,5 +288,65 @@ def create_default_machines():
             frappe.db.commit()
 
 
+def create_demo_part_kits():
+    """Create 3 demo Part Kit records for auto-part shipping examples."""
+
+    DEMO_KITS = [
+        {
+            "kit_name": "Automotive Grille Shipping Kit",
+            "description": "RSC box with PE foam end caps and cradle insert for shipping automotive grilles",
+            "wall_type": "Single Wall",
+            "parts": [
+                {"part_type": "Box Body", "box_style": "RSC", "length": 36, "width": 24, "depth": 8, "quantity_per_kit": 1},
+                {"part_type": "Pad", "length": 24, "width": 8, "depth": 1, "quantity_per_kit": 2},
+                {"part_type": "Insert", "length": 36, "width": 24, "depth": 2, "quantity_per_kit": 1},
+            ],
+        },
+        {
+            "kit_name": "Chevy 350 Small Block Engine Kit",
+            "description": "Heavy-duty BLISS box with corner foam blocks and top/bottom pads for engine shipping",
+            "wall_type": "Double Wall",
+            "parts": [
+                {"part_type": "Box Body", "box_style": "BLISS", "length": 30, "width": 24, "depth": 26, "quantity_per_kit": 1},
+                {"part_type": "Pad", "length": 6, "width": 6, "depth": 24, "quantity_per_kit": 4},
+                {"part_type": "Pad", "length": 30, "width": 24, "depth": 2, "quantity_per_kit": 1},
+                {"part_type": "Pad", "length": 30, "width": 24, "depth": 2, "quantity_per_kit": 1},
+            ],
+        },
+        {
+            "kit_name": "Lawn Mower Axle Shipping Kit",
+            "description": "Long RSC box with foam end cradles and wrap sleeve for axle protection",
+            "wall_type": "Single Wall",
+            "parts": [
+                {"part_type": "Box Body", "box_style": "RSC", "length": 42, "width": 8, "depth": 8, "quantity_per_kit": 1},
+                {"part_type": "Pad", "length": 8, "width": 8, "depth": 4, "quantity_per_kit": 2},
+                {"part_type": "Liner", "length": 42, "width": 8, "depth": 0.5, "quantity_per_kit": 1},
+            ],
+        },
+    ]
+
+    for kit_data in DEMO_KITS:
+        if frappe.db.exists("Corrugated Part Kit", {"kit_name": kit_data["kit_name"]}):
+            continue
+
+        doc = frappe.new_doc("Corrugated Part Kit")
+        doc.kit_name = kit_data["kit_name"]
+        doc.description = kit_data["description"]
+        doc.wall_type = kit_data["wall_type"]
+
+        for part in kit_data["parts"]:
+            row = doc.append("parts", {})
+            row.part_type = part["part_type"]
+            row.box_style = part.get("box_style", "")
+            row.length = part["length"]
+            row.width = part["width"]
+            row.depth = part.get("depth", 0)
+            row.quantity_per_kit = part["quantity_per_kit"]
+
+        doc.insert(ignore_permissions=True)
+        frappe.db.commit()
+
+
 def after_install():
     create_default_machines()
+    create_demo_part_kits()
