@@ -22,7 +22,7 @@ frappe.pages["die-layout-viewer"].on_page_load = function (wrapper) {
     page._viewMode = "detailed"; // "simple" or "detailed"
     page._currentLayout = null;
     page._currentDielineData = null;
-    page._layerVisibility = { CUT: true, SCORE: true, FOLD: true, GLUE: true };
+    page._layerVisibility = { CUT: true, SCORE: true, FOLD: true, GLUE: true, DIM: true };
 
     page.main.html(`
         <div class="die-layout-container">
@@ -376,6 +376,45 @@ function _renderDielineInBlank(pos, dielineData, layerVis, index) {
                 var labelSize = (el.size || 0.2) * 5;
                 svg += '<text x="' + el.x + '" y="' + el.y + '" text-anchor="middle" dominant-baseline="middle" font-size="' + labelSize + '" fill="#555" font-family="sans-serif">' + el.text + '</text>';
                 break;
+
+            case "dimension":
+                if (!layerVis["DIM"]) break;
+                var dimSw = (0.12 / Math.min(scaleX, scaleY)).toFixed(2);
+                var isHoriz = Math.abs(el.y2 - el.y1) < 0.01;
+                var off = el.offset || 0.8;
+                var tickLen = 0.3;
+                if (isHoriz) {
+                    var dy = el.side === "outside" ? off : -off;
+                    svg += '<line x1="' + el.x1 + '" y1="' + (el.y1+dy) + '" x2="' + el.x2 + '" y2="' + (el.y2+dy) + '" stroke="#666" stroke-width="' + dimSw + '" fill="none"/>';
+                    svg += '<line x1="' + el.x1 + '" y1="' + (el.y1+dy-tickLen) + '" x2="' + el.x1 + '" y2="' + (el.y1+dy+tickLen) + '" stroke="#666" stroke-width="' + dimSw + '"/>';
+                    svg += '<line x1="' + el.x2 + '" y1="' + (el.y2+dy-tickLen) + '" x2="' + el.x2 + '" y2="' + (el.y2+dy+tickLen) + '" stroke="#666" stroke-width="' + dimSw + '"/>';
+                    var dimTxtSize = 1.5;
+                    svg += '<text x="' + ((el.x1+el.x2)/2) + '" y="' + (el.y1+dy-0.2) + '" text-anchor="middle" font-size="' + dimTxtSize + '" fill="#666" font-family="sans-serif">' + el.text + '</text>';
+                } else {
+                    var dx = el.side === "outside" ? -off : off;
+                    svg += '<line x1="' + (el.x1+dx) + '" y1="' + el.y1 + '" x2="' + (el.x2+dx) + '" y2="' + el.y2 + '" stroke="#666" stroke-width="' + dimSw + '" fill="none"/>';
+                    svg += '<line x1="' + (el.x1+dx-tickLen) + '" y1="' + el.y1 + '" x2="' + (el.x1+dx+tickLen) + '" y2="' + el.y1 + '" stroke="#666" stroke-width="' + dimSw + '"/>';
+                    svg += '<line x1="' + (el.x2+dx-tickLen) + '" y1="' + el.y2 + '" x2="' + (el.x2+dx+tickLen) + '" y2="' + el.y2 + '" stroke="#666" stroke-width="' + dimSw + '"/>';
+                    var dimTxtSize2 = 1.5;
+                    svg += '<text x="' + (el.x1+dx-0.3) + '" y="' + ((el.y1+el.y2)/2) + '" text-anchor="middle" font-size="' + dimTxtSize2 + '" fill="#666" font-family="sans-serif" transform="rotate(-90,' + (el.x1+dx-0.3) + ',' + ((el.y1+el.y2)/2) + ')">' + el.text + '</text>';
+                }
+                break;
+
+            case "arc":
+                var arcR = el.r;
+                var a1 = el.start_angle * Math.PI / 180;
+                var a2 = el.end_angle * Math.PI / 180;
+                var ax1 = el.cx + arcR * Math.cos(a1);
+                var ay1 = el.cy + arcR * Math.sin(a1);
+                var ax2 = el.cx + arcR * Math.cos(a2);
+                var ay2 = el.cy + arcR * Math.sin(a2);
+                var largeArc = (el.end_angle - el.start_angle) > 180 ? 1 : 0;
+                svg += '<path d="M' + ax1.toFixed(3) + ',' + ay1.toFixed(3) + ' A' + arcR + ',' + arcR + ' 0 ' + largeArc + ' 1 ' + ax2.toFixed(3) + ',' + ay2.toFixed(3) + '" ' + strokeAttr + '/>';
+                break;
+
+            case "path":
+                svg += '<path d="' + el.d + '" ' + strokeAttr + '/>';
+                break;
         }
     });
 
@@ -395,6 +434,7 @@ function _renderLegend(page) {
         { type: "SCORE", color: "#CC0000", label: "Score Line", dash: "6,4" },
         { type: "FOLD",  color: "#009933", label: "Fold Line",  dash: "2,4" },
         { type: "GLUE",  color: "#FF6600", label: "Glue Tab",   dash: "8,4,2,4" },
+        { type: "DIM",   color: "#666666", label: "Dimensions", dash: "" },
     ];
 
     items.forEach(function (item) {
@@ -421,6 +461,7 @@ function _renderLayerToggles(page) {
         { key: "SCORE", label: "Score", color: "#CC0000" },
         { key: "FOLD", label: "Fold", color: "#009933" },
         { key: "GLUE", label: "Glue", color: "#FF6600" },
+        { key: "DIM", label: "Dims", color: "#666666" },
     ];
 
     layers.forEach(function (layer) {

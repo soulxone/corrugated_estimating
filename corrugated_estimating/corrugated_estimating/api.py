@@ -288,7 +288,7 @@ def generate_die_board_dxf(estimate_name, machine_id=None):
 @frappe.whitelist()
 def get_dieline_svg(estimate_name=None, box_style=None, length=None, width=None,
                     depth=None, flute_type=None, hand_holes=False, glue_tab=False,
-                    vent_holes=False):
+                    vent_holes=False, show_dimensions=True):
     """
     Return SVG element data for a box dieline with Pacdora-style colored lines.
 
@@ -330,6 +330,7 @@ def get_dieline_svg(estimate_name=None, box_style=None, length=None, width=None,
     return get_dieline_data(
         box_style=box_style, L=length, W=width, D=depth,
         caliper_in=caliper_in, hand_holes=hh, glue_tab=gt, vent_holes=vh,
+        show_dimensions=str(show_dimensions).lower() in ("true", "1", "yes"),
     )
 
 
