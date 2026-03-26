@@ -134,6 +134,16 @@ def calculate_blank_size(box_style, L, W, D, flute_caliper_mm=3.7):
         blank_length = L + 2 * D + MANUFACTURER_JOINT_INCHES
         blank_width  = W + 2 * D
 
+    elif style in ("RAG", "RAGDISP"):
+        # Rag Dispenser: RSC with extended 2.5" joint
+        blank_length = 2 * (L + W) + 2.5
+        blank_width  = 2 * D + 4 * caliper_in
+
+    elif style in ("WORTHINGTON", "FREON", "TANK"):
+        # Worthington: same as SFF
+        blank_length = 2 * (L + W) + MANUFACTURER_JOINT_INCHES
+        blank_width  = 2 * D + 4 * caliper_in
+
     else:
         # Default: RSC formula
         blank_length = 2 * (L + W) + MANUFACTURER_JOINT_INCHES

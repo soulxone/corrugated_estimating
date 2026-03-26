@@ -561,6 +561,164 @@ def add_thumb_notch(elements, cx, cy, width=1.5, depth=0.75):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# CUSTOM BOX STYLES
+# ══════════════════════════════════════════════════════════════════════════════
+
+def render_rag_dispenser(L, W, D, caliper_in=0.146, hole_diameter=3.0, joint_width=2.5):
+    """
+    Rag Dispenser — RSC variant with extended glue tab + circular pull hole.
+    Extended joint (2.5" vs 1.25") and 3" diameter hole on first W panel.
+    """
+    cal = caliper_in
+    elements = []
+
+    x0 = 0
+    x1 = joint_width  # extended joint
+    x2 = joint_width + W
+    x3 = joint_width + W + L
+    x4 = joint_width + 2 * W + L
+    x5 = joint_width + 2 * W + 2 * L
+
+    flap_h = D / 2 + 2 * cal
+    y0, y1, y2, y3 = 0, flap_h, flap_h + D, 2 * flap_h + D
+
+    # Outer boundary
+    elements.append(_rect(x0, y0, x5, y3, "CUT"))
+
+    # Vertical scores (body zone)
+    for x in [x1, x2, x3, x4]:
+        elements.append(_line(x, y1, x, y2, "SCORE"))
+
+    # Horizontal scores
+    elements.append(_line(x0, y1, x5, y1, "SCORE"))
+    elements.append(_line(x0, y2, x5, y2, "SCORE"))
+
+    # Slot cuts
+    for x in [x2, x3, x4]:
+        elements.append(_line(x, y0, x, y1, "CUT"))
+        elements.append(_line(x, y2, x, y3, "CUT"))
+
+    # Extended glue tab zone (GLUE line type)
+    elements.append(_rect(x0, y1, joint_width, D, "GLUE"))
+
+    # Circular pull hole on first W panel (centered in body zone)
+    hole_cx = (x1 + x2) / 2
+    hole_cy = (y1 + y2) / 2
+    elements.append(_circle(hole_cx, hole_cy, hole_diameter / 2, "CUT"))
+
+    # Labels
+    body_cy = (y1 + y2) / 2
+    elements.append(_label((x0 + x1) / 2, body_cy, "GLUE", 0.15))
+    elements.append(_label((x1 + x2) / 2, body_cy + hole_diameter / 2 + 0.5, "PULL", 0.12))
+    elements.append(_label((x2 + x3) / 2, body_cy, "L", 0.18))
+    elements.append(_label((x3 + x4) / 2, body_cy, "W", 0.18))
+    elements.append(_label((x4 + x5) / 2, body_cy, "L", 0.18))
+
+    return {
+        "elements": elements,
+        "blank_length": round(x5, 3),
+        "blank_width": round(y3, 3),
+        "style": "RAG",
+        "fefco": "0201-MOD",
+    }
+
+
+def render_worthington(L, W, D, caliper_in=0.146, tank_diameter=12.0):
+    """
+    Worthington Freon Tank Box — Complex die-cut for box erector.
+    SFF-style lock-tab bottom with cradle cutouts, restraint tabs, vent slots.
+    """
+    cal = caliper_in
+    elements = []
+
+    x0 = 0
+    x1 = JOINT
+    x2 = JOINT + W
+    x3 = JOINT + W + L
+    x4 = JOINT + 2 * W + L
+    x5 = JOINT + 2 * W + 2 * L
+
+    flap_h = D / 2 + 2 * cal
+    y0, y1, y2, y3 = 0, flap_h, flap_h + D, 2 * flap_h + D
+
+    # Outer boundary
+    elements.append(_rect(x0, y0, x5, y3, "CUT"))
+
+    # Vertical scores (body zone)
+    for x in [x1, x2, x3, x4]:
+        elements.append(_line(x, y1, x, y2, "SCORE"))
+
+    # Horizontal scores
+    elements.append(_line(x0, y1, x5, y1, "SCORE"))
+    elements.append(_line(x0, y2, x5, y2, "SCORE"))
+
+    # Top flap slots (standard)
+    for x in [x2, x3, x4]:
+        elements.append(_line(x, y2, x, y3, "CUT"))
+
+    # Bottom flap slots
+    for x in [x2, x3, x4]:
+        elements.append(_line(x, y0, x, y1, "CUT"))
+
+    # ── Lock tabs on bottom (SFF-style for box erector) ──────────────
+    tab_w = 0.75
+    tab_h = 0.5
+    for fx0, fx1 in [(x2, x3), (x4, x5)]:
+        mid = (fx0 + fx1) / 2
+        elements.append(_rect(mid - tab_w, y0, 2 * tab_w, tab_h, "CUT"))
+        elements.append(_line(mid - tab_w, y0 + tab_h, mid + tab_w, y0 + tab_h, "SCORE"))
+
+    for fx0, fx1 in [(x1, x2), (x3, x4)]:
+        mid = (fx0 + fx1) / 2
+        elements.append(_rect(mid - tab_w * 0.8, y1 - tab_h, 2 * tab_w * 0.8, tab_h, "CUT"))
+
+    # ── Cradle cutouts on W-panel bottom flaps (semicircular arcs) ───
+    cradle_r = tank_diameter / 2
+    for fx0, fx1 in [(x1, x2), (x3, x4)]:
+        cx = (fx0 + fx1) / 2
+        cy = y0 + flap_h * 0.6
+        # Semicircular cradle (180° arc opening upward)
+        elements.append(_arc(cx, cy, min(cradle_r, (fx1 - fx0) / 2 - 0.5), 180, 360, "CUT"))
+
+    # ── Top restraint tabs on L-panel top flaps ──────────────────────
+    rtab_w = 1.5
+    rtab_h = 2.0
+    for fx0, fx1 in [(x2, x3), (x4, x5)]:
+        mid = (fx0 + fx1) / 2
+        # Rectangular tab cut into the top flap
+        elements.append(_rect(mid - rtab_w / 2, y2, rtab_w, rtab_h, "CUT"))
+        elements.append(_line(mid - rtab_w / 2, y2 + rtab_h, mid + rtab_w / 2, y2 + rtab_h, "SCORE"))
+
+    # ── Ventilation slots on L-panel body ────────────────────────────
+    vent_w = 0.25
+    vent_h = 2.0
+    for fx0, fx1 in [(x2, x3), (x4, x5)]:
+        mid = (fx0 + fx1) / 2
+        vent_y = y1 + 2.0  # 2" from bottom score
+        elements.append(_rect(mid - vent_w / 2, vent_y, vent_w, vent_h, "CUT"))
+        elements.append(_rect(mid - vent_w / 2 - 3, vent_y, vent_w, vent_h, "CUT"))
+        elements.append(_rect(mid - vent_w / 2 + 3, vent_y, vent_w, vent_h, "CUT"))
+
+    # Labels
+    body_cy = (y1 + y2) / 2
+    elements.append(_label((x0 + x1) / 2, body_cy, "JNT", 0.12))
+    elements.append(_label((x1 + x2) / 2, body_cy, "W", 0.18))
+    elements.append(_label((x2 + x3) / 2, body_cy, "L", 0.18))
+    elements.append(_label((x3 + x4) / 2, body_cy, "W", 0.18))
+    elements.append(_label((x4 + x5) / 2, body_cy, "L", 0.18))
+    elements.append(_label(x5 / 2, (y0 + y1) / 2, "LOCK BOTTOM + CRADLE", 0.12))
+    elements.append(_label(x5 / 2, (y2 + y3) / 2, "TOP + RESTRAINT TABS", 0.12))
+
+    return {
+        "elements": elements,
+        "blank_length": round(x5, 3),
+        "blank_width": round(y3, 3),
+        "style": "WORTHINGTON",
+        "fefco": "0210-MOD",
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # DISPATCHER
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -597,6 +755,12 @@ RENDERERS = {
     "RPT":    render_bliss,
     "MAILER": render_diecut,
     "PIZZA":  render_diecut,
+    # Custom styles
+    "RAG":         render_rag_dispenser,
+    "RAGDISP":     render_rag_dispenser,
+    "WORTHINGTON": render_worthington,
+    "FREON":       render_worthington,
+    "TANK":        render_worthington,
 }
 
 

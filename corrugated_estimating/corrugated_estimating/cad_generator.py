@@ -526,6 +526,92 @@ def generate_sff_dxf(L, W, D, caliper_in=0.146, estimate_name=""):
     return doc
 
 
+def generate_rag_dispenser_dxf(L, W, D, caliper_in=0.146, estimate_name=""):
+    """Rag Dispenser — RSC with extended 2.5" joint + 3" pull hole."""
+    doc = _setup_doc()
+    msp = doc.modelspace()
+    cal = caliper_in
+    joint_w = 2.5
+
+    x0, x1, x2, x3, x4, x5 = 0, joint_w, joint_w+W, joint_w+W+L, joint_w+2*W+L, joint_w+2*W+2*L
+    flap_h = D / 2 + 2 * cal
+    y0, y1, y2, y3 = 0, flap_h, flap_h + D, 2 * flap_h + D
+
+    _rect(msp, x0, y0, x5, y3, "CUT")
+    for x in [x1, x2, x3, x4]:
+        _line(msp, x, y1, x, y2, "SCORE")
+    _line(msp, x0, y1, x5, y1, "SCORE")
+    _line(msp, x0, y2, x5, y2, "SCORE")
+    for x in [x2, x3, x4]:
+        _line(msp, x, y0, x, y1, "CUT")
+        _line(msp, x, y2, x, y3, "CUT")
+
+    # 3" pull hole on first W panel
+    hole_cx, hole_cy = (x1 + x2) / 2, (y1 + y2) / 2
+    msp.add_circle((hole_cx, hole_cy), 1.5, dxfattribs={"layer": "CUT"})
+
+    _label(msp, x5 / 2, (y1 + y2) / 2, "RAG DISPENSER", 0.3)
+    _hdim(msp, x0, x5, y0, -2.0)
+    _vdim(msp, y0, y3, x0, -2.0)
+
+    _title_block(msp, x0, y0 - 3, [
+        f"RAG DISPENSER (0201-MOD) — {estimate_name}",
+        f"Inside: {L}\" x {W}\" x {D}\"  |  Blank: {x5:.2f}\" x {y3:.2f}\"",
+        f"Extended joint: {joint_w}\"  |  Pull hole: 3\" dia",
+    ])
+    return doc
+
+
+def generate_worthington_dxf(L, W, D, caliper_in=0.146, estimate_name=""):
+    """Worthington Freon Tank — SFF with cradle cuts, restraint tabs, vent slots."""
+    doc = _setup_doc()
+    msp = doc.modelspace()
+    cal = caliper_in
+
+    x0, x1, x2, x3, x4, x5 = 0, JOINT, JOINT+W, JOINT+W+L, JOINT+2*W+L, JOINT+2*W+2*L
+    flap_h = D / 2 + 2 * cal
+    y0, y1, y2, y3 = 0, flap_h, flap_h + D, 2 * flap_h + D
+
+    _rect(msp, x0, y0, x5, y3, "CUT")
+    for x in [x1, x2, x3, x4]:
+        _line(msp, x, y1, x, y2, "SCORE")
+    _line(msp, x0, y1, x5, y1, "SCORE")
+    _line(msp, x0, y2, x5, y2, "SCORE")
+    for x in [x2, x3, x4]:
+        _line(msp, x, y2, x, y3, "CUT")
+        _line(msp, x, y0, x, y1, "CUT")
+
+    # Lock tabs (SFF)
+    tab_w = 0.75
+    for fx0, fx1 in [(x2, x3), (x4, x5)]:
+        mid = (fx0 + fx1) / 2
+        _rect(msp, mid - tab_w, y0, mid + tab_w, y0 + 0.5, "CUT")
+
+    # Cradle arcs on W-panel bottom flaps
+    for fx0, fx1 in [(x1, x2), (x3, x4)]:
+        cx = (fx0 + fx1) / 2
+        cy = y0 + flap_h * 0.6
+        r = min(6.0, (fx1 - fx0) / 2 - 0.5)
+        msp.add_arc((cx, cy), r, 180, 360, dxfattribs={"layer": "CUT"})
+
+    # Vent slots
+    for fx0, fx1 in [(x2, x3), (x4, x5)]:
+        mid = (fx0 + fx1) / 2
+        vy = y1 + 2.0
+        _rect(msp, mid - 0.125, vy, mid + 0.125, vy + 2.0, "CUT")
+
+    _label(msp, x5 / 2, (y1 + y2) / 2, "WORTHINGTON FREON TANK", 0.3)
+    _hdim(msp, x0, x5, y0, -2.5)
+    _vdim(msp, y0, y3, x0, -2.0)
+
+    _title_block(msp, x0, y0 - 3.5, [
+        f"WORTHINGTON FREON TANK (0210-MOD) — {estimate_name}",
+        f"Inside: {L}\" x {W}\" x {D}\"  |  Blank: {x5:.2f}\" x {y3:.2f}\"",
+        f"Lock-tab bottom + cradle cuts + restraint tabs + vent slots",
+    ])
+    return doc
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # DISPATCHER + FRAPPE INTEGRATION
 # ══════════════════════════════════════════════════════════════════════════════
@@ -542,6 +628,11 @@ GENERATORS = {
     "SFF":    generate_sff_dxf,
     "SNAP":   generate_sff_dxf,
     "LOCK":   generate_sff_dxf,
+    "RAG":    generate_rag_dispenser_dxf,
+    "RAGDISP": generate_rag_dispenser_dxf,
+    "WORTHINGTON": generate_worthington_dxf,
+    "FREON":  generate_worthington_dxf,
+    "TANK":   generate_worthington_dxf,
 }
 
 
