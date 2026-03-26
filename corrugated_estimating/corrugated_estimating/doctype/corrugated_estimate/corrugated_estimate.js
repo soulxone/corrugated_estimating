@@ -337,14 +337,15 @@ function _build_sensitivity_table(data) {
     var mn = Math.min.apply(null, flat), mx = Math.max.apply(null, flat);
 
     var html = "<style>";
-    html += ".sens-table { border-collapse: collapse; width: 100%; font-size: 12px; }";
-    html += ".sens-table th, .sens-table td { border: 1px solid #ddd; padding: 6px 10px; text-align: center; }";
+    html += ".sens-wrap { overflow-x: auto; max-width: 100%; }";
+    html += ".sens-table { border-collapse: collapse; min-width: 100%; font-size: 12px; white-space: nowrap; }";
+    html += ".sens-table th, .sens-table td { border: 1px solid #ddd; padding: 5px 8px; text-align: center; }";
     html += ".sens-table th { background: #2490EF; color: #fff; }";
     html += ".sens-table .rowhead { background: #f0f4f8; font-weight: bold; }";
     html += "</style>";
     html += "<p style='margin-bottom:8px;font-size:12px;color:#888;'>";
     html += "Rows = Board Cost ($/MSF) &nbsp;|&nbsp; Cols = Quantity &nbsp;|&nbsp; Values = Sell Price / Unit ($)</p>";
-    html += "<table class='sens-table'><thead><tr><th>$/MSF \\ Qty</th>";
+    html += "<div class='sens-wrap'><table class='sens-table'><thead><tr><th>$/MSF \\ Qty</th>";
 
     quantities.forEach(function(q) {
         html += "<th>" + _fmt_qty(q) + "</th>";
@@ -364,7 +365,7 @@ function _build_sensitivity_table(data) {
         html += "</tr>";
     });
 
-    html += "</tbody></table>";
+    html += "</tbody></table></div>";
     return html;
 }
 
