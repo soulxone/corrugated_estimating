@@ -1,0 +1,285 @@
+<!-- =========================================================
+     Estimate Cost Analysis — Internal Print Format (Jinja)
+     DocType: Corrugated Estimate
+     Full cost breakdown for internal approval
+     ========================================================= -->
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 10px; color: #1a1a1a; line-height: 1.4; }
+
+  /* ── Header ── */
+  .ca-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding-bottom: 12px; margin-bottom: 14px;
+    border-bottom: 3px solid #b91c1c;
+  }
+  .ca-header h1 {
+    font-size: 22px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: #b91c1c;
+  }
+  .ca-header .subtitle { font-size: 10px; color: #666; }
+  .ca-header .meta { text-align: right; }
+  .ca-header .est-no { font-size: 16px; font-weight: 700; }
+  .ca-header .meta-line { font-size: 9px; color: #666; }
+  .ca-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 3px;
+    font-size: 8px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: #fff; background: #f59e0b;
+    margin-top: 3px;
+  }
+  .ca-internal-banner {
+    background: #fef2f2; border: 1px solid #fecaca; border-radius: 4px;
+    padding: 6px 12px; margin-bottom: 14px; text-align: center;
+    font-size: 9px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: #b91c1c;
+  }
+
+  /* ── Info Row ── */
+  .info-row {
+    display: flex; gap: 16px; margin-bottom: 14px;
+  }
+  .info-card {
+    flex: 1; background: #f8f9fa; border-radius: 4px; padding: 10px 14px;
+  }
+  .info-card .card-title {
+    font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: #999; margin-bottom: 4px;
+  }
+  .info-card .card-value { font-size: 11px; font-weight: 600; }
+  .info-card .card-sub { font-size: 9px; color: #666; margin-top: 1px; }
+
+  /* ── Section ── */
+  .ca-section {
+    font-size: 9px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: #b91c1c;
+    border-bottom: 1px solid #e5e5e5; padding-bottom: 3px;
+    margin: 14px 0 8px;
+  }
+
+  /* ── Spec Grid ── */
+  .spec-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 12px; }
+  .sg-label { font-size: 8px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: #999; }
+  .sg-value { font-size: 11px; font-weight: 600; }
+
+  /* ── Assumptions Grid ── */
+  .assume-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 12px; }
+  .assume-item { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dotted #e5e5e5; }
+  .assume-label { font-size: 9px; color: #666; }
+  .assume-val { font-size: 10px; font-weight: 700; }
+
+  /* ── Cost Table ── */
+  table.cost-table {
+    width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 9px;
+  }
+  table.cost-table thead th {
+    background: #b91c1c; color: #fff; font-size: 7.5px;
+    font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+    padding: 5px 4px; text-align: right; white-space: nowrap;
+  }
+  table.cost-table thead th:first-child { text-align: left; }
+  table.cost-table tbody td {
+    padding: 5px 4px; text-align: right; border-bottom: 1px solid #eee;
+    font-size: 9px;
+  }
+  table.cost-table tbody td:first-child { text-align: left; font-weight: 700; }
+  table.cost-table tbody tr:nth-child(even) td { background: #fafafa; }
+  table.cost-table .cogs { font-weight: 700; color: #b91c1c; }
+  table.cost-table .sell { font-weight: 700; color: #1a1a1a; }
+  table.cost-table .margin-good { color: #166534; font-weight: 700; }
+  table.cost-table .margin-warn { color: #d97706; font-weight: 700; }
+  table.cost-table .margin-bad { color: #b91c1c; font-weight: 700; }
+
+  /* ── Notes ── */
+  .ca-notes {
+    background: #fef9ee; border-left: 3px solid #f59e0b;
+    padding: 8px 12px; margin-top: 12px; font-size: 9px;
+  }
+  .ca-notes .notes-title {
+    font-size: 8px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: #92400e; margin-bottom: 2px;
+  }
+
+  /* ── Footer ── */
+  .ca-footer {
+    margin-top: 20px; padding-top: 8px; border-top: 2px solid #b91c1c;
+    font-size: 8px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: #b91c1c; text-align: center;
+  }
+
+  @media print {
+    body { padding: 0; }
+    table.cost-table { break-inside: avoid; }
+  }
+</style>
+
+<!-- ── Header ── -->
+<div class="ca-header">
+  <div>
+    <h1>Cost Analysis</h1>
+    <div class="subtitle">Internal Estimate Review</div>
+  </div>
+  <div class="meta">
+    <div class="est-no">{{ doc.estimate_no or "DRAFT" }}</div>
+    <div class="meta-line">{{ frappe.format_value(doc.estimate_date, {'fieldtype': 'Date'}) }}</div>
+    <div class="ca-badge">{{ doc.status or "Draft" }}</div>
+  </div>
+</div>
+
+<div class="ca-internal-banner">Internal Use Only — Not for Distribution</div>
+
+<!-- ── Customer & Sales Info ── -->
+<div class="info-row">
+  <div class="info-card">
+    <div class="card-title">Customer</div>
+    <div class="card-value">{{ doc.customer or doc.crm_lead or "—" }}</div>
+    {% if doc.contact %}<div class="card-sub">{{ doc.contact }}</div>{% endif %}
+  </div>
+  <div class="info-card">
+    <div class="card-title">Sales Rep</div>
+    <div class="card-value">{{ doc.sales_rep or "—" }}</div>
+    {% if doc.crm_deal %}<div class="card-sub">Deal: {{ doc.crm_deal }}</div>{% endif %}
+  </div>
+  <div class="info-card">
+    <div class="card-title">Valid Until</div>
+    <div class="card-value">{{ frappe.format_value(doc.valid_until, {'fieldtype': 'Date'}) if doc.valid_until else "—" }}</div>
+  </div>
+</div>
+
+<!-- ── Box Specification ── -->
+<div class="ca-section">Box Specification</div>
+<div class="spec-grid">
+  <div><div class="sg-label">Box Style</div><div class="sg-value">{{ doc.box_style or "—" }}</div></div>
+  <div><div class="sg-label">Inside L &times; W &times; D</div><div class="sg-value">{{ doc.length_inside or 0 }}" &times; {{ doc.width_inside or 0 }}" &times; {{ doc.depth_inside or 0 }}"</div></div>
+  <div><div class="sg-label">Wall / Flute</div><div class="sg-value">{{ doc.wall_type or "SW" }} / {{ doc.flute_type or "—" }}</div></div>
+  <div><div class="sg-label">Board Grade</div><div class="sg-value">{{ doc.board_grade or "—" }}</div></div>
+  <div><div class="sg-label">Blank Size</div><div class="sg-value">{{ "%.3f"|format(doc.blank_length or 0) }}" &times; {{ "%.3f"|format(doc.blank_width or 0) }}"</div></div>
+  <div><div class="sg-label">Blank Area</div><div class="sg-value">{{ "%.4f"|format(doc.blank_area_sqft or 0) }} sq ft</div></div>
+  <div><div class="sg-label">Colors / Method</div><div class="sg-value">{{ doc.num_colors or 0 }}C / {{ doc.print_method or "Std" }}</div></div>
+  <div><div class="sg-label">Coating / Special</div><div class="sg-value">{{ doc.coating or "None" }}{% if doc.wax_water_resist %} / Wax{% endif %}{% if doc.die_cut_special %} / Die-Cut{% endif %}</div></div>
+</div>
+
+<!-- ── Cost Model Assumptions ── -->
+<div class="ca-section">Cost Model Assumptions</div>
+<div class="assume-grid">
+  <div class="assume-item">
+    <span class="assume-label">Default Board</span>
+    <span class="assume-val">${{ "%.2f"|format(doc.board_cost_default_msf or 0) }}/MSF</span>
+  </div>
+  <div class="assume-item">
+    <span class="assume-label">Waste</span>
+    <span class="assume-val">{{ doc.waste_pct or 8 }}%</span>
+  </div>
+  <div class="assume-item">
+    <span class="assume-label">Overhead</span>
+    <span class="assume-val">{{ doc.overhead_pct or 15 }}%</span>
+  </div>
+  <div class="assume-item">
+    <span class="assume-label">Target Margin</span>
+    <span class="assume-val">{{ doc.target_margin_pct or 35 }}%</span>
+  </div>
+  <div class="assume-item">
+    <span class="assume-label">Print Add-on</span>
+    <span class="assume-val">${{ "%.2f"|format(doc.print_addon_per_color_msf or 4) }}/C/MSF</span>
+  </div>
+  <div class="assume-item">
+    <span class="assume-label">Tooling</span>
+    <span class="assume-val">${{ "%.2f"|format(doc.tooling_cost or 0) }}</span>
+  </div>
+  <div class="assume-item">
+    <span class="assume-label">Setup</span>
+    <span class="assume-val">${{ "%.2f"|format(doc.setup_cost or 0) }}</span>
+  </div>
+  <div class="assume-item">
+    <span class="assume-label">Freight</span>
+    <span class="assume-val">{{ doc.freight_mode or "LTL" }}</span>
+  </div>
+</div>
+
+<!-- ── Cost Breakdown Table ── -->
+<div class="ca-section">Cost Breakdown by Quantity</div>
+<div style="overflow-x:auto;">
+<table class="cost-table">
+  <thead>
+    <tr>
+      <th>Qty</th>
+      <th>Board $/MSF</th>
+      <th>Tier</th>
+      <th>Material</th>
+      <th>Up-Chg</th>
+      <th>Convert</th>
+      <th>Overhead</th>
+      <th>Amort</th>
+      <th>Freight</th>
+      <th>COGS</th>
+      <th>Sell/Unit</th>
+      <th>Sell/M</th>
+      <th>Extended</th>
+      <th>Margin</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in doc.quantities %}
+    {% set margin_pct = ((row.extended_total - row.total_cogs) / row.extended_total * 100) if row.extended_total else 0 %}
+    {% set margin_class = "margin-good" if margin_pct >= 30 else ("margin-warn" if margin_pct >= 20 else "margin-bad") %}
+    <tr>
+      <td>{{ "{:,}".format(row.quantity) }}</td>
+      <td>${{ "%.2f"|format(row.board_cost_resolved_msf or row.board_cost_msf or 0) }}</td>
+      <td style="font-size:8px;">{{ row.pricing_tier or "—" }}</td>
+      <td>${{ "{:,.2f}".format(row.material_cost or 0) }}</td>
+      <td>${{ "{:,.2f}".format(row.upcharge_cost or 0) }}</td>
+      <td>${{ "{:,.2f}".format(row.converting_cost or 0) }}</td>
+      <td>${{ "{:,.2f}".format(row.overhead_cost or 0) }}</td>
+      <td>${{ "{:,.2f}".format(row.amort_fixed or 0) }}</td>
+      <td>${{ "{:,.2f}".format(row.freight_cost or 0) }}</td>
+      <td class="cogs">${{ "{:,.2f}".format(row.total_cogs or 0) }}</td>
+      <td class="sell">${{ "%.4f"|format(row.sell_price_unit or 0) }}</td>
+      <td>${{ "{:,.2f}".format(row.sell_price_m or 0) }}</td>
+      <td class="sell">${{ "{:,.2f}".format(row.extended_total or 0) }}</td>
+      <td class="{{ margin_class }}">{{ "%.1f"|format(margin_pct) }}%</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if doc.quantities %}
+{% set best_row = doc.quantities[-1] %}
+{% set best_margin = ((best_row.extended_total - best_row.total_cogs) / best_row.extended_total * 100) if best_row.extended_total else 0 %}
+<div style="margin-top: 10px; display: flex; gap: 12px;">
+  <div style="flex:1; background:#f0fdf4; border-radius:4px; padding:8px 12px; text-align:center;">
+    <div style="font-size:8px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#166534;">Gross Margin (Best Qty)</div>
+    <div style="font-size:20px; font-weight:800; color:#166534;">{{ "%.1f"|format(best_margin) }}%</div>
+    <div style="font-size:9px; color:#666;">${{ "{:,.2f}".format((best_row.extended_total or 0) - (best_row.total_cogs or 0)) }} on {{ "{:,}".format(best_row.quantity) }} units</div>
+  </div>
+  <div style="flex:1; background:#eff6ff; border-radius:4px; padding:8px 12px; text-align:center;">
+    <div style="font-size:8px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#1d4ed8;">Total COGS (Best Qty)</div>
+    <div style="font-size:20px; font-weight:800; color:#1d4ed8;">${{ "{:,.2f}".format(best_row.total_cogs or 0) }}</div>
+    <div style="font-size:9px; color:#666;">${{ "%.4f"|format((best_row.total_cogs or 0) / best_row.quantity) }}/unit</div>
+  </div>
+  <div style="flex:1; background:#fefce8; border-radius:4px; padding:8px 12px; text-align:center;">
+    <div style="font-size:8px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#854d0e;">Sell Price (Best Qty)</div>
+    <div style="font-size:20px; font-weight:800; color:#854d0e;">${{ "{:,.2f}".format(best_row.extended_total or 0) }}</div>
+    <div style="font-size:9px; color:#666;">${{ "%.4f"|format(best_row.sell_price_unit or 0) }}/unit</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Notes ── -->
+{% if doc.internal_notes %}
+<div class="ca-notes">
+  <div class="notes-title">Internal Notes</div>
+  <div>{{ doc.internal_notes }}</div>
+</div>
+{% endif %}
+{% if doc.customer_notes %}
+<div class="ca-notes" style="margin-top:8px; background:#f0f7ff; border-color:#3b82f6;">
+  <div class="notes-title" style="color:#1d4ed8;">Customer Notes</div>
+  <div>{{ doc.customer_notes }}</div>
+</div>
+{% endif %}
+
+<!-- ── Footer ── -->
+<div class="ca-footer">
+  Internal &mdash; Not for Distribution &nbsp;&bull;&nbsp; {{ doc.estimate_no or "Draft" }} &nbsp;&bull;&nbsp; {{ doc.customer or "Customer" }}
+</div>

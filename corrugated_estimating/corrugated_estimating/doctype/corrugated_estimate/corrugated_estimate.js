@@ -126,6 +126,22 @@ frappe.ui.form.on("Corrugated Estimate", {
                 _print_cost_report(frm);
             }, __("Estimating"));
 
+            frm.add_custom_button(__("Customer Estimate (PDF)"), function() {
+                var url = frappe.urllib.get_full_url(
+                    "/printview?doctype=Corrugated+Estimate&name=" + encodeURIComponent(frm.doc.name) +
+                    "&format=Estimate+Report&no_letterhead=0&_lang=en"
+                );
+                window.open(url, "_blank");
+            }, __("Estimating"));
+
+            frm.add_custom_button(__("Cost Analysis (PDF)"), function() {
+                var url = frappe.urllib.get_full_url(
+                    "/printview?doctype=Corrugated+Estimate&name=" + encodeURIComponent(frm.doc.name) +
+                    "&format=Estimate+Cost+Analysis&no_letterhead=0&_lang=en"
+                );
+                window.open(url, "_blank");
+            }, __("Estimating"));
+
             // ── Integration buttons ─────────────────────────────────────
             // Convert to Sales Order
             if (frm.doc.status !== "Rejected" && !frm.doc.sales_order_ref) {

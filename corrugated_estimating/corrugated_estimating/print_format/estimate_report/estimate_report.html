@@ -1,0 +1,269 @@
+<!-- =========================================================
+     Estimate Report — Customer-Facing Print Format (Jinja)
+     DocType: Corrugated Estimate
+     Clean pricing only — no internal cost breakdown
+     ========================================================= -->
+
+<style>
+  /* ── Reset & Base ── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 11px; color: #1a1a1a; line-height: 1.5; }
+
+  /* ── Page Header ── */
+  .est-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding-bottom: 16px; margin-bottom: 20px;
+    border-bottom: 3px solid #1a1a1a;
+  }
+  .est-header .title-block h1 {
+    font-size: 28px; font-weight: 300; letter-spacing: 3px;
+    text-transform: uppercase; color: #1a1a1a; margin-bottom: 2px;
+  }
+  .est-header .title-block .subtitle {
+    font-size: 11px; color: #666; letter-spacing: 1px;
+  }
+  .est-header .meta-block { text-align: right; }
+  .est-header .meta-block .est-number {
+    font-size: 18px; font-weight: 700; color: #1a1a1a;
+  }
+  .est-header .meta-block .meta-line {
+    font-size: 10px; color: #666; margin-top: 2px;
+  }
+  .est-badge {
+    display: inline-block; padding: 2px 10px; border-radius: 3px;
+    font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    color: #fff; margin-top: 4px;
+  }
+  .est-badge.draft { background: #f59e0b; }
+  .est-badge.sent { background: #3b82f6; }
+  .est-badge.accepted { background: #10b981; }
+  .est-badge.rejected { background: #ef4444; }
+  .est-badge.expired { background: #9ca3af; }
+
+  /* ── Customer Block ── */
+  .customer-block {
+    background: #f8f9fa; border-radius: 6px; padding: 14px 18px;
+    margin-bottom: 20px; display: flex; justify-content: space-between;
+  }
+  .customer-block .cust-name { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+  .customer-block .cust-detail { font-size: 10px; color: #555; margin-top: 2px; }
+
+  /* ── Section Headings ── */
+  .section-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: #1a1a1a;
+    border-bottom: 1px solid #ddd; padding-bottom: 4px;
+    margin: 18px 0 10px;
+  }
+
+  /* ── Spec Grid ── */
+  .spec-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px 16px; margin-bottom: 6px;
+  }
+  .spec-item .spec-label {
+    font-size: 8px; font-weight: 600; letter-spacing: 1px;
+    text-transform: uppercase; color: #999;
+  }
+  .spec-item .spec-value {
+    font-size: 12px; font-weight: 600; color: #1a1a1a; margin-top: 1px;
+  }
+
+  /* ── Pricing Table ── */
+  table.pricing {
+    width: 100%; border-collapse: collapse; margin-top: 8px;
+  }
+  table.pricing thead th {
+    background: #1a1a1a; color: #fff; font-size: 9px;
+    font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+    padding: 8px 12px; text-align: right;
+  }
+  table.pricing thead th:first-child { text-align: left; }
+  table.pricing tbody td {
+    padding: 10px 12px; text-align: right; font-size: 12px;
+    border-bottom: 1px solid #eee;
+  }
+  table.pricing tbody td:first-child {
+    text-align: left; font-weight: 700; color: #1a1a1a;
+  }
+  table.pricing tbody tr:nth-child(even) td { background: #fafafa; }
+  table.pricing tbody tr:last-child td { border-bottom: 2px solid #1a1a1a; }
+  table.pricing .price-highlight {
+    font-weight: 700; font-size: 13px; color: #1a1a1a;
+  }
+  table.pricing .extended {
+    font-weight: 700; font-size: 13px; color: #166534;
+  }
+
+  /* ── Notes ── */
+  .notes-section {
+    background: #f8f9fa; border-radius: 6px; padding: 12px 16px;
+    margin-top: 16px; font-size: 10px; color: #444;
+  }
+  .notes-section .notes-title {
+    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: #888; margin-bottom: 4px;
+  }
+
+  /* ── Terms ── */
+  .terms-block {
+    margin-top: 20px; padding-top: 12px; border-top: 1px solid #eee;
+    font-size: 9px; color: #888; line-height: 1.7;
+  }
+
+  /* ── Footer ── */
+  .est-footer {
+    margin-top: 30px; padding-top: 10px; border-top: 1px solid #ddd;
+    font-size: 8px; color: #aaa; text-align: center;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  /* ── Print ── */
+  @media print {
+    body { padding: 0; }
+    .est-header { break-after: avoid; }
+    table.pricing { break-inside: avoid; }
+  }
+</style>
+
+<!-- ── Header ── -->
+<div class="est-header">
+  <div class="title-block">
+    <h1>Estimate</h1>
+    <div class="subtitle">Corrugated Packaging</div>
+  </div>
+  <div class="meta-block">
+    <div class="est-number">{{ doc.estimate_no or "DRAFT" }}</div>
+    <div class="meta-line">Date: {{ frappe.format_value(doc.estimate_date, {'fieldtype': 'Date'}) }}</div>
+    {% if doc.valid_until %}
+    <div class="meta-line">Valid Until: {{ frappe.format_value(doc.valid_until, {'fieldtype': 'Date'}) }}</div>
+    {% endif %}
+    {% set status_lower = (doc.status or 'draft')|lower %}
+    <div class="est-badge {{ status_lower }}">{{ doc.status or "Draft" }}</div>
+  </div>
+</div>
+
+<!-- ── Customer ── -->
+<div class="customer-block">
+  <div>
+    <div class="cust-name">{{ doc.customer or doc.crm_lead or "Customer" }}</div>
+    {% if doc.contact %}
+    <div class="cust-detail">{{ doc.contact }}</div>
+    {% endif %}
+  </div>
+  <div style="text-align:right;">
+    {% if doc.sales_rep %}
+    <div class="cust-detail">Sales Rep: <strong>{{ doc.sales_rep }}</strong></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Box Specification ── -->
+<div class="section-title">Box Specification</div>
+<div class="spec-grid">
+  <div class="spec-item">
+    <div class="spec-label">Box Style</div>
+    <div class="spec-value">{{ doc.box_style or "—" }}</div>
+  </div>
+  <div class="spec-item">
+    <div class="spec-label">Inside Dimensions</div>
+    <div class="spec-value">{{ doc.length_inside or 0 }}" &times; {{ doc.width_inside or 0 }}" &times; {{ doc.depth_inside or 0 }}"</div>
+  </div>
+  <div class="spec-item">
+    <div class="spec-label">Wall Type</div>
+    <div class="spec-value">{{ doc.wall_type or "Single Wall" }}</div>
+  </div>
+  <div class="spec-item">
+    <div class="spec-label">Board Grade</div>
+    <div class="spec-value">{{ doc.board_grade or "—" }}</div>
+  </div>
+</div>
+
+<!-- ── Print & Finishing ── -->
+<div class="section-title">Print &amp; Finishing</div>
+<div class="spec-grid">
+  <div class="spec-item">
+    <div class="spec-label">Colors</div>
+    <div class="spec-value">{{ doc.num_colors or 0 }} Color{{ "s" if (doc.num_colors or 0) != 1 else "" }}</div>
+  </div>
+  <div class="spec-item">
+    <div class="spec-label">Print Method</div>
+    <div class="spec-value">{{ doc.print_method or "Standard" }}</div>
+  </div>
+  <div class="spec-item">
+    <div class="spec-label">Coating</div>
+    <div class="spec-value">{{ doc.coating or "None" }}</div>
+  </div>
+  <div class="spec-item">
+    <div class="spec-label">Special</div>
+    <div class="spec-value">
+      {% set specials = [] %}
+      {% if doc.wax_water_resist %}{% set _ = specials.append("Wax/Water Resist") %}{% endif %}
+      {% if doc.die_cut_special %}{% set _ = specials.append("Die-Cut") %}{% endif %}
+      {{ specials|join(", ") or "None" }}
+    </div>
+  </div>
+</div>
+
+<!-- ── Pricing Table ── -->
+<div class="section-title">Pricing</div>
+<table class="pricing">
+  <thead>
+    <tr>
+      <th>Quantity</th>
+      <th>Price / Unit</th>
+      <th>Price / M</th>
+      <th>Extended Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in doc.quantities %}
+    <tr>
+      <td>{{ "{:,}".format(row.quantity) }}</td>
+      <td class="price-highlight">${{ "%.4f"|format(row.sell_price_unit or 0) }}</td>
+      <td>${{ "%.2f"|format(row.sell_price_m or 0) }}</td>
+      <td class="extended">${{ "{:,.2f}".format(row.extended_total or 0) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if doc.tooling_cost or doc.setup_cost %}
+<div style="margin-top: 8px; font-size: 10px; color: #666;">
+  {% if doc.tooling_cost %}
+  <span>Tooling / Dies: <strong>${{ "%.2f"|format(doc.tooling_cost) }}</strong></span>
+  &nbsp;&nbsp;
+  {% endif %}
+  {% if doc.setup_cost %}
+  <span>Setup: <strong>${{ "%.2f"|format(doc.setup_cost) }}</strong></span>
+  {% endif %}
+  <span style="color:#999;">&nbsp;(amortized into unit pricing above)</span>
+</div>
+{% endif %}
+
+<!-- ── Notes ── -->
+{% if doc.customer_notes %}
+<div class="notes-section">
+  <div class="notes-title">Notes</div>
+  <div>{{ doc.customer_notes }}</div>
+</div>
+{% endif %}
+
+<!-- ── Terms ── -->
+<div class="terms-block">
+  <div><strong>Terms &amp; Conditions:</strong></div>
+  <div>
+    &bull; Pricing is based on the quantities shown above and is subject to change.
+    {% if doc.valid_until %}
+    &bull; This estimate is valid until {{ frappe.format_value(doc.valid_until, {'fieldtype': 'Date'}) }}.
+    {% endif %}
+    &bull; Tooling and die charges apply to initial orders; reorders may not incur these charges.
+    &bull; Freight charges are estimated and may vary based on delivery location and fuel surcharges.
+    &bull; Lead time: 2-3 weeks from art approval for standard orders.
+  </div>
+</div>
+
+<!-- ── Footer ── -->
+<div class="est-footer">
+  {{ doc.estimate_no or "Draft" }} &nbsp;&bull;&nbsp; Confidential &nbsp;&bull;&nbsp; Prepared for {{ doc.customer or "Customer" }}
+</div>
