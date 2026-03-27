@@ -1,5 +1,5 @@
 /* =============================================================================
-   Corrugated Estimate – Form Controller  (v3 ElkCorr Operating Plan)
+   Corrugated Estimate – Form Controller  (v3)
    ============================================================================
    Mirrors the Welch Wyse Box Estimator HTML tool inside Frappe.
 
@@ -7,7 +7,7 @@
    Sell price:  COGS / (1 − target_margin%)   or   COGS × (1 + markup%)
 
    v3 additions:
-     - Tiered board pricing from Operating Plan (< 50 MSF / > 50 / > 100 MSF)
+     - Tiered board pricing (< 50 MSF / > 50 / > 100 MSF)
      - Board Grade Up-Charges (white liner, coatings, flute surcharges)
      - Resolved board cost and pricing tier shown per quantity row
      - Up-charge cost as a separate line in the cost breakdown
@@ -336,7 +336,7 @@ function _show_grade_pricing_banner(frm) {
             var g = r.message;
 
             var html = "<div class='grade-pricing-banner' style='padding:10px 14px;margin:8px 0;background:#f0f7ff;border:1px solid #d0e3f7;border-radius:6px;font-size:12px;'>";
-            html += "<strong>Operating Plan — " + frm.doc.board_grade + "</strong>";
+            html += "<strong>Board Grade — " + frm.doc.board_grade + "</strong>";
             html += " &nbsp;|&nbsp; < 50 MSF: <b>$" + _f(g.board_cost_msf) + "</b>";
 
             // Show all tiers from the grade
@@ -483,12 +483,12 @@ function _print_cost_report(frm) {
     html += "td{border-bottom:1px solid #eee;padding:5px 8px;}";
     html += "tr:nth-child(even){background:#f9f9f9;}";
     html += ".footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center;}";
-    html += ".op-banner{background:#f0f7ff;border:1px solid #d0e3f7;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;}";
+    // op-banner removed
     html += "@media print{body{padding:0;} button{display:none;}}";
     html += "</style></head><body>";
 
     html += "<div class='header'>";
-    html += "<div><h1>Corrugated Cost Report</h1>";
+    html += "<div><h1>Welchwyse Cost Report</h1>";
     html += "<div>" + (doc.estimate_no || "Draft") + " &nbsp;|&nbsp; ";
     html += frappe.datetime.str_to_user(doc.estimate_date) + "</div></div>";
     html += "<div style='text-align:right;'>";
@@ -496,13 +496,6 @@ function _print_cost_report(frm) {
     html += "<div>Status: " + doc.status + "</div>";
     html += "<div>Sales Rep: " + (doc.sales_rep || "—") + "</div>";
     html += "</div></div>";
-
-    // Operating Plan banner
-    if (doc.board_grade) {
-        html += "<div class='op-banner'>";
-        html += "<strong>Board Grade:</strong> " + doc.board_grade;
-        html += "</div>";
-    }
 
     html += "<div class='section'><h3>Box Specification</h3><div class='grid'>";
     html += _rf("Box Style",   doc.box_style);
