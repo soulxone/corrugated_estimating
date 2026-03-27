@@ -24,6 +24,8 @@
     "effective_date",
     "upcharges_section",
     "upcharges",
+    "erpnext_section",
+    "item_code",
     "description"
   ],
   "fields": [
@@ -140,6 +142,19 @@
       "fieldtype": "Table",
       "label": "Up-Charges",
       "options": "Board Grade Up Charge"
+    },
+    {
+      "fieldname": "erpnext_section",
+      "fieldtype": "Section Break",
+      "label": "ERPNext Integration",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "item_code",
+      "fieldtype": "Link",
+      "label": "ERPNext Item",
+      "options": "Item",
+      "description": "Link to ERPNext Item for stock tracking and BOM creation"
     },
     {
       "fieldname": "description",

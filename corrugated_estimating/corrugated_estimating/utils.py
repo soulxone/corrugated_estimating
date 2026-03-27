@@ -244,12 +244,39 @@ def calculate_blank_size(box_style, L, W, D, flute_caliper_mm=3.7):
 
 # ── Material Cost (internal) ─────────────────────────────────────────────────
 
+def calculate_effective_waste(waste_pct, quantity=0, settings=None):
+    """Calculate effective waste % accounting for run-length spoilage.
+
+    Short runs have higher effective waste due to makeready/startup spoilage.
+    Formula: effective = base_waste + (spoilage_sheets / quantity) * 100
+
+    Falls back to flat waste_pct if settings don't have spoilage fields.
+    """
+    base = float(waste_pct or 8.0)
+    qty = int(quantity or 0)
+    if qty <= 0:
+        return base
+
+    if settings is None:
+        settings = get_settings()
+
+    spoilage = float(settings.get("spoilage_sheets", 0))
+    if spoilage <= 0:
+        return base  # No spoilage factor configured — use flat waste
+
+    base_trim = float(settings.get("base_waste_pct", 5.0))
+    effective = base_trim + (spoilage / qty) * 100.0
+    return round(min(effective, 50.0), 2)  # Cap at 50% to avoid absurd values
+
+
 def _calc_material_per_unit(blank_area_sqft, board_cost_msf, waste_pct=8.0,
                              num_colors=0, print_addon_per_color_msf=4.0,
                              wax_treat=False, wax_cost_msf=0.10,
-                             upcharges_msf=0.0):
+                             upcharges_msf=0.0, quantity=0, settings=None):
     """
     Full per-unit material cost with waste factor, print add-on, wax, and up-charges.
+
+    If quantity > 0 and settings has spoilage_sheets, waste scales with run length.
 
     Returns
     -------
@@ -259,7 +286,13 @@ def _calc_material_per_unit(blank_area_sqft, board_cost_msf, waste_pct=8.0,
     if area <= 0:
         return 0.0, 0.0, 0.0
 
-    waste      = float(waste_pct or 8.0) / 100.0
+    # Use run-length-dependent waste if quantity provided
+    if int(quantity or 0) > 0 and settings:
+        eff_waste = calculate_effective_waste(waste_pct, quantity, settings)
+    else:
+        eff_waste = float(waste_pct or 8.0)
+
+    waste      = eff_waste / 100.0
     gross_sqft = area * (1.0 + waste)
     gross_msf  = gross_sqft / 1000.0
 
@@ -320,17 +353,66 @@ def calculate_amortized_fixed(tooling_cost, setup_cost, quantity):
 
 # ── Freight Cost ─────────────────────────────────────────────────────────────
 
+def _estimate_boxes_per_pallet(length_in=16, width_in=12, depth_in=10,
+                                pallet_l=48, pallet_w=40, max_height=48):
+    """Estimate boxes per pallet from box dimensions.
+
+    Tries both orientations, picks the one with most boxes per layer,
+    then stacks layers up to max_height (minus 6" for pallet deck).
+    """
+    L = float(length_in or 16)
+    W = float(width_in or 12)
+    H = float(depth_in or 10)
+    if L <= 0 or W <= 0 or H <= 0:
+        return 40  # fallback
+
+    # Try both orientations
+    o1_across = int(pallet_l / L)
+    o1_down = int(pallet_w / W)
+    o2_across = int(pallet_l / W)
+    o2_down = int(pallet_w / L)
+
+    per_layer = max(o1_across * o1_down, o2_across * o2_down)
+    usable_height = max_height - 6  # 6" pallet deck
+    layers = max(1, int(usable_height / H))
+    return max(1, per_layer * layers)
+
+
+def _estimate_pallets_per_truck(pallet_l=48, pallet_w=40, max_height=48):
+    """Estimate pallets that fit in a 53' trailer (636" long x 102" wide x 110" tall).
+
+    Standard: pallets load 2-wide (102/48=2) x length (636/40=15) = 30 single-stack.
+    If pallet height ≤ 55", can double-stack: 2 x 30 = 60 max, but usually 20-26.
+    """
+    trailer_l = 636  # 53' in inches
+    trailer_w = 102  # 8.5' in inches
+    trailer_h = 110  # internal height
+
+    # Pallets oriented lengthwise
+    along_l = int(trailer_l / pallet_w)  # 40" side along trailer length
+    across_w = int(trailer_w / pallet_l)  # 48" side across trailer width
+    single_stack = along_l * across_w  # typically 15 * 2 = 30
+
+    # Can we double-stack?
+    total_pallet_h = float(max_height) + 6  # stack height + deck
+    if total_pallet_h * 2 <= trailer_h:
+        return single_stack * 2
+    return single_stack
+
+
 def calculate_freight_cost_per_unit(blank_area_sqft, board_lbs_msf=90.0,
                                      freight_mode="LTL",
                                      freight_manual_per_unit=0.0,
-                                     settings=None):
+                                     settings=None,
+                                     length_in=0, width_in=0, depth_in=0,
+                                     ship_distance_miles=0):
     """
-    Freight cost per unit.
+    Freight cost per unit with palletization-based truck loading.
 
     Modes:
       None   — no freight cost
-      LTL    — box_weight_lbs / 100 × ltl_rate_cwt
-      TL     — (tl_rate × haul_miles) / pieces_per_truck
+      LTL    — box_weight_lbs / 100 × ltl_rate_cwt × distance_factor
+      TL     — (tl_rate × haul_miles) / pieces_per_truck (palletization-based)
       Manual — flat per-unit value
     """
     if settings is None:
@@ -343,14 +425,34 @@ def calculate_freight_cost_per_unit(blank_area_sqft, board_lbs_msf=90.0,
         return float(freight_manual_per_unit or 0)
 
     box_wt_lbs = float(board_lbs_msf or 90.0) / 1000.0 * float(blank_area_sqft or 0)
+    distance = float(ship_distance_miles or 0) or settings.get("default_ship_distance_miles", 500)
 
     if freight_mode == "LTL":
-        return box_wt_lbs / 100.0 * settings["ltl_rate_cwt"]
+        # Distance factor: base rate at 500 miles, scale proportionally
+        base_distance = 500.0
+        distance_factor = max(0.5, distance / base_distance)
+        return box_wt_lbs / 100.0 * settings["ltl_rate_cwt"] * distance_factor
 
     if freight_mode == "TL":
-        pallets_per_truck = 40.0
-        pieces_per_truck  = settings["boxes_per_pallet"] * pallets_per_truck
-        tl_total = settings["tl_rate_mile"] * settings["tl_haul_miles"]
+        # Use actual palletization if box dimensions provided
+        L = float(length_in or 0)
+        W = float(width_in or 0)
+        D = float(depth_in or 0)
+
+        if L > 0 and W > 0 and D > 0:
+            boxes_per_pallet = _estimate_boxes_per_pallet(L, W, D)
+            pallets_per_truck = _estimate_pallets_per_truck(max_height=48)
+            pieces_per_truck = boxes_per_pallet  # per pallet already includes layers
+            # Actually: total per truck = boxes_per_pallet * pallets_per_truck / layers
+            # Simplified: use boxes_per_pallet for full pallet, scale by truck pallets
+            bpp = _estimate_boxes_per_pallet(L, W, D, max_height=48)
+            ppt = _estimate_pallets_per_truck(max_height=48)
+            pieces_per_truck = bpp * ppt
+        else:
+            pieces_per_truck = settings["boxes_per_pallet"] * 26  # realistic default
+
+        haul_miles = distance or settings["tl_haul_miles"]
+        tl_total = settings["tl_rate_mile"] * haul_miles
         return tl_total / pieces_per_truck if pieces_per_truck > 0 else 0.0
 
     return 0.0
@@ -431,6 +533,7 @@ def calculate_full_row(
         waste_pct, num_colors, print_addon_per_color_msf,
         wax_treat, settings.get("wax_cost_msf", 0.10),
         upcharges_msf=float(upcharges_msf or 0),
+        quantity=qty, settings=settings,
     )
     mat_total = mat_per_unit * qty
     upcharge_total = upcharge_per_unit * qty

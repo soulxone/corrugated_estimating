@@ -31,7 +31,12 @@
     "default_overhead_pct",
     "defaults_col",
     "default_target_margin_pct",
-    "default_board_cost_msf"
+    "default_board_cost_msf",
+    "waste_scaling_section",
+    "base_waste_pct",
+    "spoilage_sheets",
+    "waste_scaling_col",
+    "default_ship_distance_miles"
   ],
   "fields": [
     {
@@ -193,6 +198,36 @@
       "fieldtype": "Currency",
       "label": "Default Board Cost ($/MSF)",
       "default": "180"
+    },
+    {
+      "fieldname": "waste_scaling_section",
+      "fieldtype": "Section Break",
+      "label": "Waste Scaling (Run-Length)"
+    },
+    {
+      "fieldname": "base_waste_pct",
+      "fieldtype": "Float",
+      "label": "Base Trim/Scrap Waste %",
+      "default": "5",
+      "description": "Fixed waste from trim and scrap (excludes startup spoilage)"
+    },
+    {
+      "fieldname": "spoilage_sheets",
+      "fieldtype": "Int",
+      "label": "Spoilage Sheets (Makeready)",
+      "default": "200",
+      "description": "Fixed startup/makeready waste in sheets — effective waste = base + (spoilage/qty)*100"
+    },
+    {
+      "fieldname": "waste_scaling_col",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "default_ship_distance_miles",
+      "fieldtype": "Float",
+      "label": "Default Ship Distance (miles)",
+      "default": "500",
+      "description": "Default shipping distance for freight rate scaling"
     }
   ],
   "links": [],

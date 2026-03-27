@@ -431,3 +431,80 @@ def create_estimate_from_studio(box_style, length, width, depth,
     doc.save()
     frappe.db.commit()
     return {"name": doc.name, "status": "success"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  TOOLING INVENTORY
+# ═══════════════════════════════════════════════════════════════════════════
+
+@frappe.whitelist()
+def get_estimate_spec(estimate_name):
+    """Return box specification fields from an estimate (used by Tooling form)."""
+    est = frappe.get_doc("Corrugated Estimate", estimate_name)
+    return {
+        "box_style": est.box_style,
+        "length_inside": est.length_inside,
+        "width_inside": est.width_inside,
+        "depth_inside": est.depth_inside,
+        "flute_type": est.flute_type,
+        "board_grade": est.board_grade,
+        "num_colors": est.num_colors,
+        "customer": est.customer,
+    }
+
+
+@frappe.whitelist()
+def check_existing_tooling(customer=None, box_style=None,
+                            length_inside=0, width_inside=0, depth_inside=0):
+    """Check if active tooling exists for a customer + box spec.
+
+    Returns list of matching Corrugated Tooling records, or empty list.
+    """
+    if not customer or not box_style:
+        return []
+
+    L = float(length_inside or 0)
+    W = float(width_inside or 0)
+    D = float(depth_inside or 0)
+
+    # Tolerance: within 0.1" on each dimension
+    tol = 0.1
+    filters = {
+        "customer": customer,
+        "box_style": box_style,
+        "status": "Active",
+        "length_inside": ["between", [L - tol, L + tol]],
+        "width_inside": ["between", [W - tol, W + tol]],
+        "depth_inside": ["between", [D - tol, D + tol]],
+    }
+
+    tooling = frappe.get_all("Corrugated Tooling", filters=filters,
+                              fields=["name", "tooling_name", "tooling_type",
+                                       "last_used_date", "num_impressions",
+                                       "storage_location"])
+    return tooling
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ERPNEXT INTEGRATION — BOM + JOB CARDS
+# ═══════════════════════════════════════════════════════════════════════════
+
+@frappe.whitelist()
+def create_bom_from_estimate(estimate_name):
+    """Create an ERPNext BOM from a Corrugated Estimate.
+
+    Creates the finished-good Item if needed, links board grade as raw material.
+    """
+    from corrugated_estimating.corrugated_estimating.integration.bom_bridge import (
+        estimate_to_bom,
+    )
+    return estimate_to_bom(estimate_name)
+
+
+@frappe.whitelist()
+def create_job_cards_from_estimate(estimate_name, sales_order=None):
+    """Create ERPNext Job Cards from routing steps of a Corrugated Estimate."""
+    from corrugated_estimating.corrugated_estimating.integration.job_card_bridge import (
+        estimate_to_job_cards,
+    )
+    return estimate_to_job_cards(estimate_name, sales_order)

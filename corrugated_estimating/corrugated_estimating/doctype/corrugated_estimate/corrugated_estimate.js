@@ -183,10 +183,45 @@ frappe.ui.form.on("Corrugated Estimate", {
                     _check_board_stock(frm);
                 }, __("Integrate"));
             }
+
+            // ERPNext: Create BOM
+            frm.add_custom_button(__("Create BOM"), function() {
+                frappe.call({
+                    method: "corrugated_estimating.corrugated_estimating.api.create_bom_from_estimate",
+                    args: { estimate_name: frm.doc.name },
+                    freeze: true,
+                    freeze_message: __("Creating BOM in ERPNext..."),
+                    callback: function(r) {
+                        if (r.message) {
+                            frappe.show_alert({ message: r.message.message, indicator: r.message.status === "success" ? "green" : "blue" }, 8);
+                        }
+                    }
+                });
+            }, __("Integrate"));
+
+            // ERPNext: Create Job Cards
+            if (frm.doc.routing_steps && frm.doc.routing_steps.length) {
+                frm.add_custom_button(__("Create Job Cards"), function() {
+                    frappe.call({
+                        method: "corrugated_estimating.corrugated_estimating.api.create_job_cards_from_estimate",
+                        args: { estimate_name: frm.doc.name, sales_order: frm.doc.sales_order_ref },
+                        freeze: true,
+                        freeze_message: __("Creating Job Cards in ERPNext..."),
+                        callback: function(r) {
+                            if (r.message) {
+                                frappe.show_alert({ message: r.message.message, indicator: "green" }, 8);
+                            }
+                        }
+                    });
+                }, __("Integrate"));
+            }
         }
 
         // Show grade pricing info banner when a grade is selected
         _show_grade_pricing_banner(frm);
+
+        // Tooling detection banner
+        _check_tooling(frm);
 
         // Status badge colors
         const statusColors = {
@@ -750,6 +785,53 @@ function _show_routing_summary(frm) {
                 message: html,
                 wide: true,
             });
+        }
+    });
+}
+
+
+// ── Tooling Detection ─────────────────────────────────────────────────────────
+
+function _check_tooling(frm) {
+    if (!frm.doc.customer || !frm.doc.box_style || frm.is_new()) return;
+
+    frm.$wrapper.find(".tooling-banner").remove();
+
+    frappe.call({
+        method: "corrugated_estimating.corrugated_estimating.api.check_existing_tooling",
+        args: {
+            customer: frm.doc.customer,
+            box_style: frm.doc.box_style,
+            length_inside: frm.doc.length_inside,
+            width_inside: frm.doc.width_inside,
+            depth_inside: frm.doc.depth_inside,
+        },
+        callback: function(r) {
+            if (!r.message) return;
+            var tooling = r.message;
+            var html = "";
+
+            if (tooling.length > 0) {
+                var t = tooling[0];
+                html = '<div class="tooling-banner" style="padding:10px 14px;margin:8px 0;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:6px;font-size:12px;">';
+                html += '<strong style="color:#2E7D32;">Existing Tooling Found</strong> — ';
+                html += '<a href="/app/corrugated-tooling/' + t.name + '">' + t.tooling_name + '</a>';
+                html += ' (' + t.tooling_type + ')';
+                if (t.storage_location) html += ' | Location: ' + t.storage_location;
+                if (t.last_used_date) html += ' | Last used: ' + t.last_used_date;
+                html += '<br><span style="color:#388E3C;">Tooling charge may be waived for this reorder.</span>';
+                html += '</div>';
+            } else if (frm.doc.tooling_cost > 0) {
+                html = '<div class="tooling-banner" style="padding:10px 14px;margin:8px 0;background:#fff3e0;border:1px solid #ffe0b2;border-radius:6px;font-size:12px;">';
+                html += '<strong style="color:#E65100;">New Tooling Required</strong> — ';
+                html += 'No existing die found for this customer + box spec. ';
+                html += 'Tooling charge: $' + frm.doc.tooling_cost.toFixed(2);
+                html += '</div>';
+            }
+
+            if (html) {
+                frm.fields_dict.box_style.$wrapper.before(html);
+            }
         }
     });
 }
