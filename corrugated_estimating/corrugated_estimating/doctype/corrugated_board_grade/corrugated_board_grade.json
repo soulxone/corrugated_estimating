@@ -8,10 +8,22 @@
     "grade_name",
     "test_type",
     "test_value",
-    "lbs_msf",
+    "wall_type",
     "col1",
+    "lbs_msf",
+    "flute_options",
+    "minimum_order",
+    "run_as_note",
+    "pricing_section",
+    "price_under_50msf",
+    "price_50_to_100msf",
+    "price_over_100msf",
+    "pricing_col",
     "price_msf_low",
     "price_msf_high",
+    "effective_date",
+    "upcharges_section",
+    "upcharges",
     "description"
   ],
   "fields": [
@@ -37,10 +49,10 @@
       "in_list_view": 1
     },
     {
-      "fieldname": "lbs_msf",
-      "fieldtype": "Float",
-      "label": "Weight (lbs/MSF)",
-      "description": "Board weight in pounds per 1,000 sq ft — used for freight calculations",
+      "fieldname": "wall_type",
+      "fieldtype": "Select",
+      "label": "Wall Type",
+      "options": "\nSingle Wall\nDouble Wall",
       "in_list_view": 1
     },
     {
@@ -48,16 +60,86 @@
       "fieldtype": "Column Break"
     },
     {
+      "fieldname": "lbs_msf",
+      "fieldtype": "Float",
+      "label": "Weight (lbs/MSF)",
+      "description": "Board weight in pounds per 1,000 sq ft — used for freight calculations"
+    },
+    {
+      "fieldname": "flute_options",
+      "fieldtype": "Data",
+      "label": "Flute Options",
+      "description": "Comma-separated flute codes this grade runs on (e.g. B,C,BC)"
+    },
+    {
+      "fieldname": "minimum_order",
+      "fieldtype": "Data",
+      "label": "Minimum Order",
+      "description": "Minimum order requirement (e.g. '300 LF', '1 MSF', '25 MSF')"
+    },
+    {
+      "fieldname": "run_as_note",
+      "fieldtype": "Data",
+      "label": "Run-As Note",
+      "description": "If this grade is run as another grade (e.g. '125 Ran As WP130')"
+    },
+    {
+      "fieldname": "pricing_section",
+      "fieldtype": "Section Break",
+      "label": "Operating Plan Pricing ($/MSF)"
+    },
+    {
+      "fieldname": "price_under_50msf",
+      "fieldtype": "Currency",
+      "label": "< 50 MSF ($/MSF)",
+      "in_list_view": 1,
+      "description": "Price per MSF for orders under 50,000 sq ft"
+    },
+    {
+      "fieldname": "price_50_to_100msf",
+      "fieldtype": "Currency",
+      "label": "> 50 MSF ($/MSF)",
+      "description": "Price per MSF for orders between 50,000 and 100,000 sq ft"
+    },
+    {
+      "fieldname": "price_over_100msf",
+      "fieldtype": "Currency",
+      "label": "> 100 MSF ($/MSF)",
+      "description": "Price per MSF for orders over 100,000 sq ft"
+    },
+    {
+      "fieldname": "pricing_col",
+      "fieldtype": "Column Break"
+    },
+    {
       "fieldname": "price_msf_low",
       "fieldtype": "Currency",
       "label": "Price Low ($/MSF)",
-      "description": "Low end of typical market price range per MSF"
+      "description": "Low end of typical market price range per MSF (legacy)"
     },
     {
       "fieldname": "price_msf_high",
       "fieldtype": "Currency",
       "label": "Price High ($/MSF)",
-      "description": "High end of typical market price range per MSF"
+      "description": "High end of typical market price range per MSF (legacy)"
+    },
+    {
+      "fieldname": "effective_date",
+      "fieldtype": "Date",
+      "label": "Effective Date",
+      "description": "Date this pricing became effective"
+    },
+    {
+      "fieldname": "upcharges_section",
+      "fieldtype": "Section Break",
+      "label": "Up-Charges",
+      "collapsible": 1
+    },
+    {
+      "fieldname": "upcharges",
+      "fieldtype": "Table",
+      "label": "Up-Charges",
+      "options": "Board Grade Up Charge"
     },
     {
       "fieldname": "description",
@@ -66,7 +148,7 @@
     }
   ],
   "links": [],
-  "modified": "2026-03-12 00:00:00.000000",
+  "modified": "2026-03-27 00:00:00.000000",
   "modified_by": "Administrator",
   "module": "Corrugated Estimating",
   "name": "Corrugated Board Grade",

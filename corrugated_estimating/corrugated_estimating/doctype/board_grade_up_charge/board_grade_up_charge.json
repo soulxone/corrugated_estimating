@@ -1,0 +1,56 @@
+{
+  "actions": [],
+  "creation": "2026-03-27 00:00:00.000000",
+  "doctype": "DocType",
+  "editable_grid": 1,
+  "engine": "InnoDB",
+  "istable": 1,
+  "field_order": [
+    "charge_name",
+    "charge_type",
+    "amount_per_msf",
+    "note"
+  ],
+  "fields": [
+    {
+      "fieldname": "charge_name",
+      "fieldtype": "Data",
+      "label": "Charge Name",
+      "reqd": 1,
+      "in_list_view": 1,
+      "columns": 3,
+      "description": "e.g. White Liner, Nomar Coating, A/AC Flute Surcharge"
+    },
+    {
+      "fieldname": "charge_type",
+      "fieldtype": "Select",
+      "label": "Charge Type",
+      "options": "\nLiner\nMedium\nCoating\nFlute Surcharge\nSize Surcharge\nSetup\nOther",
+      "in_list_view": 1,
+      "columns": 2
+    },
+    {
+      "fieldname": "amount_per_msf",
+      "fieldtype": "Currency",
+      "label": "Amount ($/MSF)",
+      "in_list_view": 1,
+      "columns": 2,
+      "description": "Additional cost per MSF added to the base board price"
+    },
+    {
+      "fieldname": "note",
+      "fieldtype": "Data",
+      "label": "Note",
+      "in_list_view": 1,
+      "columns": 3
+    }
+  ],
+  "links": [],
+  "modified": "2026-03-27 00:00:00.000000",
+  "modified_by": "Administrator",
+  "module": "Corrugated Estimating",
+  "name": "Board Grade Up Charge",
+  "owner": "Administrator",
+  "permissions": [],
+  "track_changes": 0
+}

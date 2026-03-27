@@ -1,5 +1,5 @@
 """
-Corrugated Estimating – Calculation Engine (Full Model v2)
+Corrugated Estimating – Calculation Engine (Full Model v3)
 ==========================================================
 Implements the complete Welch Wyse Box Estimator costing model:
 
@@ -9,15 +9,12 @@ All box dimensions are in INCHES.
 Board cost is expressed as $/MSF  (dollars per 1,000 square feet).
 Machine rates (converting) are also $/MSF.
 
-New in v2:
-  - Waste factor applied to blank area before material cost calc
-  - Full converting cost from machine rates (FFG + Slot + Die + Glue + Bundle + QC)
-  - Overhead as % of converting
-  - Tooling + setup amortized per quantity
-  - Freight model: LTL ($/cwt), TL ($/mile), or Manual
-  - Target-margin sell pricing:  Sell = COGS / (1 − margin%)
-  - Sensitivity matrix (board cost × quantity grid)
-  - All settings loaded from Corrugated Estimating Settings singleton
+New in v3 (ElkCorr Operating Plan integration):
+  - Tiered board pricing from Corrugated Board Grade: <50 MSF / >50 MSF / >100 MSF
+  - Board Grade Up-Charges (white liner, nomar, kemi, flute surcharges, etc.)
+  - resolve_board_cost_from_grade() auto-selects tier based on order MSF
+  - get_upcharges_for_grade() sums up-charge $/MSF from the grade's child table
+  - Full cost breakdown now includes upcharge_cost as a separate line item
 """
 
 import frappe
@@ -70,6 +67,98 @@ def get_settings():
         return result
     except Exception:
         return dict(_SETTINGS_DEFAULTS)
+
+
+# ── Board Grade Pricing Resolution ───────────────────────────────────────────
+
+def resolve_board_cost_from_grade(board_grade, blank_area_sqft, quantity,
+                                   override_board_cost_msf=0.0):
+    """
+    Resolve the effective board cost ($/MSF) from the Corrugated Board Grade
+    using ElkCorr Operating Plan tiered pricing.
+
+    Tiers are based on total MSF of the order:
+      < 50 MSF  →  price_under_50msf
+      50–100 MSF → price_50_to_100msf
+      > 100 MSF  →  price_over_100msf
+
+    If the grade has no tiered pricing or is not found, falls back to
+    override_board_cost_msf or the settings default.
+
+    Returns
+    -------
+    dict: {
+        board_cost_msf:   float  — resolved price per MSF,
+        pricing_tier:     str    — which tier was selected,
+        upcharges_msf:    float  — total up-charges per MSF from the grade,
+        upcharge_details: list   — [{name, type, amount}] breakdown,
+        board_lbs_msf:    float  — board weight for freight,
+        minimum_order:    str    — grade minimum order requirement,
+        run_as_note:      str    — if grade runs as another grade,
+    }
+    """
+    result = {
+        "board_cost_msf": float(override_board_cost_msf or 0),
+        "pricing_tier": "Manual Override" if override_board_cost_msf else "Default",
+        "upcharges_msf": 0.0,
+        "upcharge_details": [],
+        "board_lbs_msf": 90.0,
+        "minimum_order": "",
+        "run_as_note": "",
+    }
+
+    if not board_grade:
+        return result
+
+    try:
+        bg = frappe.get_doc("Corrugated Board Grade", board_grade)
+    except frappe.DoesNotExistError:
+        return result
+
+    # Board weight
+    if bg.lbs_msf:
+        result["board_lbs_msf"] = float(bg.lbs_msf)
+    result["minimum_order"] = bg.minimum_order or ""
+    result["run_as_note"] = bg.run_as_note or ""
+
+    # Calculate total order MSF
+    order_msf = (float(blank_area_sqft or 0) * float(quantity or 0)) / 1000.0
+
+    # Resolve tiered pricing (only if tiers are populated and no manual override)
+    if not override_board_cost_msf:
+        p1 = float(bg.price_under_50msf or 0)
+        p2 = float(bg.price_50_to_100msf or 0)
+        p3 = float(bg.price_over_100msf or 0)
+
+        if p1 > 0 or p2 > 0 or p3 > 0:
+            if order_msf > 100 and p3 > 0:
+                result["board_cost_msf"] = p3
+                result["pricing_tier"] = "> 100 MSF"
+            elif order_msf > 50 and p2 > 0:
+                result["board_cost_msf"] = p2
+                result["pricing_tier"] = "> 50 MSF"
+            elif p1 > 0:
+                result["board_cost_msf"] = p1
+                result["pricing_tier"] = "< 50 MSF"
+
+    # Sum up-charges from the grade's child table
+    upcharges_total = 0.0
+    details = []
+    for uc in (bg.upcharges or []):
+        amt = float(uc.amount_per_msf or 0)
+        if amt > 0:
+            upcharges_total += amt
+            details.append({
+                "name": uc.charge_name,
+                "type": uc.charge_type or "",
+                "amount": amt,
+                "note": uc.note or "",
+            })
+
+    result["upcharges_msf"] = upcharges_total
+    result["upcharge_details"] = details
+
+    return result
 
 
 # ── Blank Size ───────────────────────────────────────────────────────────────
@@ -157,17 +246,18 @@ def calculate_blank_size(box_style, L, W, D, flute_caliper_mm=3.7):
 
 def _calc_material_per_unit(blank_area_sqft, board_cost_msf, waste_pct=8.0,
                              num_colors=0, print_addon_per_color_msf=4.0,
-                             wax_treat=False, wax_cost_msf=0.10):
+                             wax_treat=False, wax_cost_msf=0.10,
+                             upcharges_msf=0.0):
     """
-    Full per-unit material cost with waste factor, print add-on, and wax treatment.
+    Full per-unit material cost with waste factor, print add-on, wax, and up-charges.
 
     Returns
     -------
-    (mat_per_unit, gross_sqft_per_unit)
+    (mat_per_unit, gross_sqft_per_unit, upcharge_per_unit)
     """
     area = float(blank_area_sqft or 0)
     if area <= 0:
-        return 0.0, 0.0
+        return 0.0, 0.0, 0.0
 
     waste      = float(waste_pct or 8.0) / 100.0
     gross_sqft = area * (1.0 + waste)
@@ -177,11 +267,15 @@ def _calc_material_per_unit(blank_area_sqft, board_cost_msf, waste_pct=8.0,
     colors = int(num_colors or 0)
     addon  = float(print_addon_per_color_msf or 0)
     wax    = float(wax_cost_msf or 0.10) if wax_treat else 0.0
+    upcharge = float(upcharges_msf or 0.0)
+
+    upcharge_per_unit = upcharge * gross_msf
 
     mat_per_unit = (board * gross_msf
                     + colors * addon / 1000.0 * area
-                    + wax * gross_msf)
-    return mat_per_unit, gross_sqft
+                    + wax * gross_msf
+                    + upcharge_per_unit)
+    return mat_per_unit, gross_sqft, upcharge_per_unit
 
 
 # ── Converting Cost ──────────────────────────────────────────────────────────
@@ -303,11 +397,15 @@ def calculate_full_row(
         markup_pct=30.0,
         settings=None,
         routing_steps=None,
-        die_layout_outs=0):
+        die_layout_outs=0,
+        upcharges_msf=0.0,
+        pricing_tier="",
+        upcharge_details=None):
     """
     Calculate the complete cost breakdown for a single quantity row.
 
-    Returns a dict with all cost component keys matching the child DocType fields.
+    Returns a dict with all cost component keys matching the child DocType fields,
+    plus upcharge_cost, pricing_tier, and upcharge_details for the report.
     """
     if settings is None:
         settings = get_settings()
@@ -317,19 +415,25 @@ def calculate_full_row(
         return {
             "material_cost":   0.0, "converting_cost": 0.0,
             "overhead_cost":   0.0, "amort_fixed":      0.0,
-            "freight_cost":    0.0, "total_cogs":       0.0,
-            "total_cost":      0.0, "plate_charges":    0.0,
+            "freight_cost":    0.0, "upcharge_cost":    0.0,
+            "total_cogs":      0.0, "total_cost":       0.0,
+            "plate_charges":   0.0,
             "sell_price_m":    0.0, "sell_price_unit":  0.0,
             "extended_total":  0.0,
+            "board_cost_resolved_msf": 0.0,
+            "pricing_tier":    "",
+            "upcharge_details": [],
         }
 
-    # Material
-    mat_per_unit, gross_sqft = _calc_material_per_unit(
+    # Material (includes up-charges in the material line)
+    mat_per_unit, gross_sqft, upcharge_per_unit = _calc_material_per_unit(
         blank_area_sqft, board_cost_msf,
         waste_pct, num_colors, print_addon_per_color_msf,
         wax_treat, settings.get("wax_cost_msf", 0.10),
+        upcharges_msf=float(upcharges_msf or 0),
     )
     mat_total = mat_per_unit * qty
+    upcharge_total = upcharge_per_unit * qty
 
     # Converting — use routing-based cost if routing steps provided
     if routing_steps:
@@ -379,12 +483,16 @@ def calculate_full_row(
         "overhead_cost":   round(oh_total, 2),
         "amort_fixed":     round(amort_total, 2),
         "freight_cost":    round(frt_total, 2),
+        "upcharge_cost":   round(upcharge_total, 2),
         "total_cogs":      round(total_cogs, 2),
         "total_cost":      round(legacy_total, 2),
         "plate_charges":   round(float(plate_charges or 0), 2),
         "sell_price_m":    round(sell_per_unit * 1000, 2),
         "sell_price_unit": round(sell_per_unit, 6),
         "extended_total":  round(sell_total, 2),
+        "board_cost_resolved_msf": round(float(board_cost_msf or 0), 2),
+        "pricing_tier":    pricing_tier or "",
+        "upcharge_details": upcharge_details or [],
     }
 
 

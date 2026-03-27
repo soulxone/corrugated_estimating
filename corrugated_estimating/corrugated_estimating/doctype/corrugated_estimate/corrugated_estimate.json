@@ -345,14 +345,14 @@
       "fieldtype": "Section Break",
       "label": "Cost Model & Assumptions",
       "collapsible": 1,
-      "description": "These values drive the full cost breakdown in the quantity table below. Defaults can be set in Corrugated Estimating Settings."
+      "description": "When a Board Grade is selected, pricing comes from the ElkCorr Operating Plan (tiered by MSF volume). The default below is only used when no grade is chosen."
     },
     {
       "fieldname": "board_cost_default_msf",
       "fieldtype": "Currency",
       "label": "Default Board Cost ($/MSF)",
       "default": "180",
-      "description": "Default board cost applied to new quantity rows if not overridden per-row"
+      "description": "Fallback board cost when no Board Grade is selected. Overridden by Operating Plan tiered pricing when a grade is chosen."
     },
     {
       "fieldname": "waste_pct",
@@ -449,7 +449,7 @@
     }
   ],
   "links": [],
-  "modified": "2026-03-12 00:00:00.000000",
+  "modified": "2026-03-27 00:00:00.000000",
   "modified_by": "Administrator",
   "module": "Corrugated Estimating",
   "name": "Corrugated Estimate",

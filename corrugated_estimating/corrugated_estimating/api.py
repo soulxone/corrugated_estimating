@@ -10,6 +10,7 @@ from corrugated_estimating.corrugated_estimating.utils import (
     calculate_full_row,
     calculate_sensitivity_matrix,
     get_settings,
+    resolve_board_cost_from_grade,
 )
 
 
@@ -59,24 +60,34 @@ def calculate_row(
     Full cost calculation for a single quantity row.
     Called from corrugated_estimate.js whenever any cost-driver changes.
 
-    Returns the same field keys as the Corrugated Estimate Quantity child DocType.
+    Uses ElkCorr Operating Plan tiered pricing when a board grade is selected.
+    The per-row board_cost_msf acts as a manual override — if 0, the grade's
+    tiered price is used based on total order MSF.
+
+    Returns the same field keys as the Corrugated Estimate Quantity child DocType,
+    plus board_cost_resolved_msf, pricing_tier, upcharge_cost, and upcharge_details.
     """
     settings = get_settings()
+    qty = int(float(quantity or 0))
+    area = float(blank_area_sqft or 0)
+    manual_board_cost = float(board_cost_msf or 0)
 
-    # Resolve board weight from board grade master
-    board_lbs_msf = 90.0
-    if board_grade:
-        try:
-            bg = frappe.get_doc("Corrugated Board Grade", board_grade)
-            if bg.lbs_msf:
-                board_lbs_msf = float(bg.lbs_msf)
-        except frappe.DoesNotExistError:
-            pass
+    # Resolve board cost from grade tiered pricing + up-charges
+    grade_info = resolve_board_cost_from_grade(
+        board_grade=board_grade,
+        blank_area_sqft=area,
+        quantity=qty,
+        override_board_cost_msf=manual_board_cost,
+    )
+
+    # Fallback chain: grade tiered price → manual override → settings default
+    effective_board_cost = grade_info["board_cost_msf"] or manual_board_cost or settings.get("default_board_cost_msf", 180.0)
+    board_lbs_msf = grade_info["board_lbs_msf"]
 
     return calculate_full_row(
-        quantity               = int(float(quantity or 0)),
-        blank_area_sqft        = float(blank_area_sqft or 0),
-        board_cost_msf         = float(board_cost_msf or 0),
+        quantity               = qty,
+        blank_area_sqft        = area,
+        board_cost_msf         = effective_board_cost,
         waste_pct              = float(waste_pct or 8),
         num_colors             = int(float(num_colors or 0)),
         print_addon_per_color_msf = float(print_addon_per_color_msf or 4),
@@ -94,6 +105,9 @@ def calculate_row(
         setup_charge_legacy    = float(setup_charge or 0),
         markup_pct             = float(markup_pct or 30),
         settings               = settings,
+        upcharges_msf          = grade_info["upcharges_msf"],
+        pricing_tier           = grade_info["pricing_tier"],
+        upcharge_details       = grade_info["upcharge_details"],
     )
 
 
@@ -103,20 +117,36 @@ def calculate_row(
 def get_sensitivity_matrix(estimate_name):
     """
     Return a sell-price sensitivity matrix for the given estimate.
-    Rows = board costs ($140–$260), cols = quantities (500–100K).
+    Rows = board costs centered around the grade's price, cols = quantities (500–100K).
     Called when user clicks the Sensitivity Analysis button on the form.
     """
     est = frappe.get_doc("Corrugated Estimate", estimate_name)
     settings = get_settings()
 
     board_lbs_msf = 90.0
+    board_costs = None  # use default range
+
     if est.board_grade:
-        try:
-            bg = frappe.get_doc("Corrugated Board Grade", est.board_grade)
-            if bg.lbs_msf:
-                board_lbs_msf = float(bg.lbs_msf)
-        except frappe.DoesNotExistError:
-            pass
+        grade_info = resolve_board_cost_from_grade(
+            board_grade=est.board_grade,
+            blank_area_sqft=float(est.blank_area_sqft or 0),
+            quantity=int(est.annual_quantity or 5000),
+        )
+        board_lbs_msf = grade_info["board_lbs_msf"]
+
+        # Center the sensitivity range around the grade's mid-tier price
+        mid_price = grade_info["board_cost_msf"]
+        if mid_price > 0:
+            step = 10
+            board_costs = [
+                round(mid_price - 3 * step, 2),
+                round(mid_price - 2 * step, 2),
+                round(mid_price - step, 2),
+                round(mid_price, 2),
+                round(mid_price + step, 2),
+                round(mid_price + 2 * step, 2),
+                round(mid_price + 3 * step, 2),
+            ]
 
     return calculate_sensitivity_matrix(
         blank_area_sqft        = float(est.blank_area_sqft or 0),
@@ -133,6 +163,23 @@ def get_sensitivity_matrix(estimate_name):
         wax_treat              = bool(est.wax_water_resist),
         die_cut                = bool(est.die_cut_special),
         settings               = settings,
+        board_costs            = board_costs,
+    )
+
+
+# ── Board Grade Pricing Info (for JS) ────────────────────────────────────────
+
+@frappe.whitelist()
+def get_grade_pricing(board_grade, blank_area_sqft=0, quantity=0, board_cost_msf=0):
+    """
+    Return resolved board grade pricing info for the JS form.
+    Shows the user which tier was selected and any applicable up-charges.
+    """
+    return resolve_board_cost_from_grade(
+        board_grade=board_grade,
+        blank_area_sqft=float(blank_area_sqft or 0),
+        quantity=int(float(quantity or 0)),
+        override_board_cost_msf=float(board_cost_msf or 0),
     )
 
 

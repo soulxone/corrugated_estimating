@@ -1,10 +1,16 @@
 /* =============================================================================
-   Corrugated Estimate – Form Controller  (v2 Full Cost Model)
+   Corrugated Estimate – Form Controller  (v3 ElkCorr Operating Plan)
    ============================================================================
    Mirrors the Welch Wyse Box Estimator HTML tool inside Frappe.
 
    Cost model:  Material → Converting → Overhead → Amort.Fixed → Freight → COGS
    Sell price:  COGS / (1 − target_margin%)   or   COGS × (1 + markup%)
+
+   v3 additions:
+     - Tiered board pricing from Operating Plan (< 50 MSF / > 50 / > 100 MSF)
+     - Board Grade Up-Charges (white liner, coatings, flute surcharges)
+     - Resolved board cost and pricing tier shown per quantity row
+     - Up-charge cost as a separate line in the cost breakdown
 
    All recalculation is driven server-side via API (uses Settings machine rates).
    The form responds instantly to any change that affects the cost breakdown.
@@ -163,6 +169,9 @@ frappe.ui.form.on("Corrugated Estimate", {
             }
         }
 
+        // Show grade pricing info banner when a grade is selected
+        _show_grade_pricing_banner(frm);
+
         // Status badge colors
         const statusColors = {
             "Draft":    "grey",
@@ -220,7 +229,7 @@ frappe.ui.form.on("Corrugated Estimate", {
     freight_manual_per_unit:  function(frm) { frm.trigger("recalc_all_rows"); },
     wax_water_resist:         function(frm) { frm.trigger("recalc_all_rows"); },
     die_cut_special:          function(frm) { frm.trigger("recalc_all_rows"); },
-    board_grade:              function(frm) { frm.trigger("recalc_all_rows"); },
+    board_grade:              function(frm) { _show_grade_pricing_banner(frm); frm.trigger("recalc_all_rows"); },
     board_cost_default_msf:   function(frm) { frm.trigger("recalc_all_rows"); },
 
     recalc_all_rows: function(frm) {
@@ -253,8 +262,13 @@ function _recalc_row(frm, cdt, cdn) {
     var blank_area  = parseFloat(frm.doc.blank_area_sqft) || 0;
     if (!blank_area) return;
 
-    // Use per-row board cost if set, else use estimate-level default
-    var board_cost  = parseFloat(row.board_cost_msf) || parseFloat(frm.doc.board_cost_default_msf) || 180;
+    // Use per-row board cost if set, else pass 0 to let grade-based pricing resolve.
+    // If no grade is selected either, the API falls back to the estimate default.
+    var board_cost  = parseFloat(row.board_cost_msf) || 0;
+    // When no grade is selected and no per-row override, use estimate default
+    if (!board_cost && !frm.doc.board_grade) {
+        board_cost = parseFloat(frm.doc.board_cost_default_msf) || 180;
+    }
 
     frappe.call({
         method: "corrugated_estimating.corrugated_estimating.api.calculate_row",
@@ -282,11 +296,13 @@ function _recalc_row(frm, cdt, cdn) {
         callback: function(r) {
             if (!r.message) return;
             var m = r.message;
-            // Update all calc fields on the row
+            // Update all calc fields on the row (including new v3 fields)
             var fields = [
                 "material_cost", "converting_cost", "overhead_cost",
-                "amort_fixed", "freight_cost", "total_cogs", "total_cost",
+                "amort_fixed", "freight_cost", "upcharge_cost",
+                "total_cogs", "total_cost",
                 "sell_price_m", "sell_price_unit", "extended_total",
+                "board_cost_resolved_msf", "pricing_tier",
             ];
             fields.forEach(function(f) {
                 if (m[f] !== undefined) {
@@ -294,6 +310,57 @@ function _recalc_row(frm, cdt, cdn) {
                 }
             });
             frm.refresh_field("quantities");
+        }
+    });
+}
+
+
+// ── Grade Pricing Banner ─────────────────────────────────────────────────────
+
+function _show_grade_pricing_banner(frm) {
+    // Remove any existing grade pricing banner
+    frm.$wrapper.find(".grade-pricing-banner").remove();
+
+    if (!frm.doc.board_grade) return;
+
+    frappe.call({
+        method: "corrugated_estimating.corrugated_estimating.api.get_grade_pricing",
+        args: {
+            board_grade: frm.doc.board_grade,
+            blank_area_sqft: frm.doc.blank_area_sqft || 0,
+            quantity: (frm.doc.quantities && frm.doc.quantities.length)
+                ? frm.doc.quantities[0].quantity || 0 : 0,
+        },
+        callback: function(r) {
+            if (!r.message) return;
+            var g = r.message;
+
+            var html = "<div class='grade-pricing-banner' style='padding:10px 14px;margin:8px 0;background:#f0f7ff;border:1px solid #d0e3f7;border-radius:6px;font-size:12px;'>";
+            html += "<strong>Operating Plan — " + frm.doc.board_grade + "</strong>";
+            html += " &nbsp;|&nbsp; < 50 MSF: <b>$" + _f(g.board_cost_msf) + "</b>";
+
+            // Show all tiers from the grade
+            html += " &nbsp;|&nbsp; Min: " + (g.minimum_order || "—");
+
+            if (g.run_as_note) {
+                html += " &nbsp;|&nbsp; <em>" + g.run_as_note + "</em>";
+            }
+
+            if (g.upcharges_msf > 0) {
+                html += " &nbsp;|&nbsp; Up-Charges: <b>+$" + _f(g.upcharges_msf) + "/MSF</b>";
+                html += " (";
+                g.upcharge_details.forEach(function(uc, i) {
+                    if (i > 0) html += ", ";
+                    html += uc.name + " $" + _f(uc.amount);
+                });
+                html += ")";
+            }
+
+            html += "</div>";
+
+            // Insert after the board_grade field
+            var $field = frm.fields_dict.board_grade.$wrapper;
+            $field.after(html);
         }
     });
 }
@@ -356,7 +423,6 @@ function _build_sensitivity_table(data) {
         html += "<tr><td class='rowhead'>$" + board_costs[i] + "</td>";
         row.forEach(function(val) {
             var pct = mx > mn ? (val - mn) / (mx - mn) : 0.5;
-            // Heat map: green (low) → yellow → red (high) — inverted for sell price (lower cost = better)
             var r = Math.round(255 * pct);
             var g = Math.round(255 * (1 - pct));
             var bg = "rgba(" + r + "," + g + ",80,0.25)";
@@ -378,7 +444,6 @@ function _fmt_qty(q) {
 // ── Print Cost Report ─────────────────────────────────────────────────────────
 
 function _print_cost_report(frm) {
-    // Build a full report and open it in a new window for printing
     var doc = frm.doc;
     var qty_rows = doc.quantities || [];
 
@@ -389,8 +454,10 @@ function _print_cost_report(frm) {
     qty_rows.forEach(function(row) {
         rows_html += "<tr>";
         rows_html += "<td>" + frappe.format(row.quantity, {fieldtype:"Int"}) + "</td>";
-        rows_html += "<td>$" + _f(row.board_cost_msf) + "</td>";
+        rows_html += "<td>$" + _f(row.board_cost_resolved_msf || row.board_cost_msf) + "</td>";
+        rows_html += "<td>" + (row.pricing_tier || "Manual") + "</td>";
         rows_html += "<td>$" + _f(row.material_cost) + "</td>";
+        rows_html += "<td>$" + _f(row.upcharge_cost) + "</td>";
         rows_html += "<td>$" + _f(row.converting_cost) + "</td>";
         rows_html += "<td>$" + _f(row.overhead_cost) + "</td>";
         rows_html += "<td>$" + _f(row.amort_fixed) + "</td>";
@@ -416,6 +483,7 @@ function _print_cost_report(frm) {
     html += "td{border-bottom:1px solid #eee;padding:5px 8px;}";
     html += "tr:nth-child(even){background:#f9f9f9;}";
     html += ".footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center;}";
+    html += ".op-banner{background:#f0f7ff;border:1px solid #d0e3f7;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;}";
     html += "@media print{body{padding:0;} button{display:none;}}";
     html += "</style></head><body>";
 
@@ -429,13 +497,20 @@ function _print_cost_report(frm) {
     html += "<div>Sales Rep: " + (doc.sales_rep || "—") + "</div>";
     html += "</div></div>";
 
+    // Operating Plan banner
+    if (doc.board_grade) {
+        html += "<div class='op-banner'>";
+        html += "<strong>ElkCorr Operating Plan Grade:</strong> " + doc.board_grade;
+        html += "</div>";
+    }
+
     html += "<div class='section'><h3>Box Specification</h3><div class='grid'>";
     html += _rf("Box Style",   doc.box_style);
     html += _rf("Wall Type",   doc.wall_type);
     html += _rf("Flute",       doc.flute_type);
     html += _rf("Board Grade", doc.board_grade);
-    html += _rf("L × W × D",  (doc.length_inside||0) + '" × ' + (doc.width_inside||0) + '" × ' + (doc.depth_inside||0) + '"');
-    html += _rf("Blank Size",  (doc.blank_length||0).toFixed(3) + '" × ' + (doc.blank_width||0).toFixed(3) + '"');
+    html += _rf("L x W x D",  (doc.length_inside||0) + '" x ' + (doc.width_inside||0) + '" x ' + (doc.depth_inside||0) + '"');
+    html += _rf("Blank Size",  (doc.blank_length||0).toFixed(3) + '" x ' + (doc.blank_width||0).toFixed(3) + '"');
     html += _rf("Blank Area",  (doc.blank_area_sqft||0).toFixed(4) + " sq ft");
     html += _rf("Annual Qty",  doc.annual_quantity ? frappe.format(doc.annual_quantity,{fieldtype:"Int"}) : "—");
     html += "</div></div>";
@@ -461,7 +536,7 @@ function _print_cost_report(frm) {
 
     html += "<div class='section'><h3>Quantity Breaks &amp; Pricing</h3>";
     html += "<table><thead><tr>";
-    html += "<th>Qty</th><th>Board $/MSF</th><th>Material</th><th>Converting</th>";
+    html += "<th>Qty</th><th>Board $/MSF</th><th>Tier</th><th>Material</th><th>Up-Charges</th><th>Converting</th>";
     html += "<th>Overhead</th><th>Amort.Fixed</th><th>Freight</th>";
     html += "<th>Total COGS</th><th>Sell/Unit</th><th>Extended</th>";
     html += "</tr></thead><tbody>" + rows_html + "</tbody></table></div>";
@@ -470,8 +545,8 @@ function _print_cost_report(frm) {
         html += "<div class='section'><h3>Customer Notes</h3><p>" + doc.customer_notes + "</p></div>";
     }
 
-    html += "<div class='footer'>Generated by Welchwyse Corrugated Estimating · " + new Date().toLocaleString() + "</div>";
-    html += "<br><button onclick='window.print()' style='padding:8px 20px;background:#2490EF;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;'>🖨 Print / Save PDF</button>";
+    html += "<div class='footer'>Generated by Welchwyse Corrugated Estimating (ElkCorr Operating Plan) · " + new Date().toLocaleString() + "</div>";
+    html += "<br><button onclick='window.print()' style='padding:8px 20px;background:#2490EF;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;'>Print / Save PDF</button>";
     html += "</body></html>";
 
     win.document.write(html);
@@ -492,7 +567,6 @@ function _rf(label, value) {
 // ── Integration helpers ───────────────────────────────────────────────────────
 
 function _convert_to_sales_order(frm) {
-    // Build quantity row selector if multiple rows exist
     const rows = frm.doc.quantities || [];
     if (!rows.length) {
         frappe.msgprint(__("Please add at least one quantity break before converting."));
@@ -673,7 +747,6 @@ function _show_routing_summary(frm) {
 
 
 function _check_board_stock(frm) {
-    // Check if the board grade item is in stock via Lexington Inventory Monitor API
     frappe.call({
         method: "lexington_inventory.lexington_inventory.api.get_item_stock_info",
         args: { item_code: frm.doc.board_grade },
@@ -684,12 +757,11 @@ function _check_board_stock(frm) {
             }
             const s = r.message;
             const color = s.actual_qty <= 0 ? "red" : s.actual_qty <= s.reorder_level ? "orange" : "green";
-            const icon  = s.actual_qty <= 0 ? "🔴" : s.actual_qty <= s.reorder_level ? "🟠" : "🟢";
             frappe.msgprint({
                 title: __("Board Stock — {0}", [frm.doc.board_grade]),
                 message: `
                     <div style="text-align:center;font-size:18px;padding:12px">
-                        ${icon} <b style="color:${color}">${s.actual_qty} ${s.uom || "units"}</b> on hand
+                        <b style="color:${color}">${s.actual_qty} ${s.uom || "units"}</b> on hand
                         <div style="font-size:12px;color:#888;margin-top:8px">Reorder level: ${s.reorder_level || "—"} | Open alerts: ${s.open_alerts}</div>
                     </div>
                 `,
