@@ -63,8 +63,8 @@ frappe.pages["die-line-studio"].on_page_load = function (wrapper) {
     // ── Build Controls ──────────────────────────────────────────────────
     var styleField = frappe.ui.form.make_control({
         parent: page.main.find("#st-style"),
-        df: { fieldtype: "Select", fieldname: "box_style",
-              options: "RSC\nFOL\nHSC\nTRAY\nBLISS\nDIE-CUT\nSFF\nRAG\nWORTHINGTON",
+        df: { fieldtype: "Link", fieldname: "box_style",
+              options: "Corrugated Box Style",
               default: "RSC" },
         render_input: true,
     });
